@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -30,7 +30,7 @@
       animation: slideDown .35s ease-out;
     }
     @keyframes slideDown{
-      from{transform: translateY(-8px); opacity:.0;}
+      from{transform: translateY(-8px); opacity:0;}
       to{transform: translateY(0); opacity:1;}
     }
 
@@ -47,7 +47,7 @@
       padding:7px 12px;
       border-radius:999px;
       color:#fff;
-      font-weight:700;
+      font-weight:800;
       font-size:12px;
       letter-spacing:.3px;
       background: linear-gradient(135deg, #111, #3a3a3a);
@@ -55,16 +55,16 @@
 
     .status{
       font-size: 15px;
-      font-weight: 800;
+      font-weight: 900;
     }
-    .muted{color:#666; font-weight:700}
+    .muted{color:#666; font-weight:800}
 
     .chip{
       padding: 7px 10px;
       border-radius: 999px;
       background: rgba(0,0,0,.06);
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 800;
     }
 
     .row{
@@ -87,7 +87,7 @@
       border: 0;
       border-radius: 12px;
       color: #fff;
-      font-weight: 800;
+      font-weight: 900;
       background: linear-gradient(135deg, #111, #2b2b2b);
       cursor:pointer;
       transition: transform .08s ease, opacity .15s ease;
@@ -116,12 +116,11 @@
       border-radius: 12px;
       background: rgba(0,0,0,.06);
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 900;
       user-select:none;
     }
     .toggle input{ width: 16px; height: 16px; margin:0; }
 
-    /* Mobile spacing */
     @media (max-width: 520px){
       .status{font-size:14px;}
       input{min-width: 180px;}
@@ -139,7 +138,7 @@
         <span class="status">
           Nearest: <span id="nearestPlot" class="muted">Detecting…</span>
         </span>
-        <span id="distanceChip" class="chip">— m</span>
+        <span id="distanceChip" class="chip">Distance: — m</span>
       </div>
 
       <div class="chip" id="gpsStatus">GPS: …</div>
@@ -148,6 +147,7 @@
     <div class="row">
       <input id="searchInput" placeholder="Search Plot ID or Area (e.g., V.FH3.OS.3-001 / Emergency Area / first aid)" />
       <button id="searchBtn">Search</button>
+      <button id="clearBtn" class="secondary">Clear</button>
       <button id="navigateBtn" class="secondary" disabled>Navigate</button>
     </div>
 
@@ -164,7 +164,8 @@
     </div>
 
     <div class="hint">
-      Allow location permission. Search supports Plot ID, Name, Aliases, and Tags (Emergency area, Rest area, Assembly point, etc.).
+      GPS = location status & accuracy. “m” = meters distance to nearest saved plot point.
+      Search works for Plot ID, Area Name, and partial words (Emergency / rest / assembly, etc.).
     </div>
   </div>
 
