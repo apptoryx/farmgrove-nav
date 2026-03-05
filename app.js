@@ -1,7 +1,6 @@
 mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9yeTd1NHoifQ.aUq1kh2qBAIUM6Hcxf5NGg";
 
 
-// Site center from your link
 const SITE_CENTER = [55.4352569, 25.020628]; // [lng, lat]
 const SITE_ZOOM = 17;
 
@@ -14,6 +13,7 @@ let rotating = true;
 let rotateTimer = null;
 
 let youAreHereMarker = null;
+let selectedRingMarker = null; // HTML fallback marker
 
 // UI
 const nearestPlotEl = document.getElementById("nearestPlot");
@@ -41,20 +41,29 @@ async function init() {
 
   map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
-  // Load plots.json (simple format: plot_id, name, lat, lng)
   const res = await fetch("./plots.json");
   plots = await res.json();
 
   map.on("load", () => {
-    add3D(map);
+    // ✅ 1) Always add highlight layers FIRST (so search ring works)
+    addSelectionHighlightLayersSafe();
+
+    // ✅ 2) Then pins
     addPlotPins();
-    addSelectionHighlightLayers();   // ✅ highlight ring layer
+
+    // ✅ 3) Then GPS
     startLiveLocation();
+
+    // ✅ 4) Then auto rotate
     startAutoRotate();
+
+    // ✅ 5) 3D extras (safe)
+    add3DSafe();
   });
 
   searchBtn.addEventListener("click", searchAny);
   searchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") searchAny(); });
+
   clearBtn.addEventListener("click", clearSearch);
 
   navigateBtn.addEventListener("click", () => {
@@ -73,60 +82,7 @@ async function init() {
   });
 }
 
-// --------- 3D / Terrain / Sky / Buildings ----------
-function add3D(map) {
-  map.addSource("mapbox-dem", {
-    type: "raster-dem",
-    url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-    tileSize: 512,
-    maxzoom: 14
-  });
-
-  map.setTerrain({ source: "mapbox-dem", exaggeration: 1.35 });
-
-  map.addLayer({
-    id: "sky",
-    type: "sky",
-    paint: {
-      "sky-type": "atmosphere",
-      "sky-atmosphere-sun": [0.0, 0.0],
-      "sky-atmosphere-sun-intensity": 12
-    }
-  });
-
-  // 3D buildings (only where available)
-  const layers = map.getStyle().layers;
-  const labelLayerId = layers.find(
-    (l) => l.type === "symbol" && l.layout && l.layout["text-field"]
-  )?.id;
-
-  map.addLayer(
-    {
-      id: "3d-buildings",
-      source: "composite",
-      "source-layer": "building",
-      filter: ["==", "extrude", "true"],
-      type: "fill-extrusion",
-      minzoom: 15,
-      paint: {
-        "fill-extrusion-opacity": 0.75,
-        "fill-extrusion-height": [
-          "interpolate", ["linear"], ["zoom"],
-          15, 0,
-          16, ["get", "height"]
-        ],
-        "fill-extrusion-base": [
-          "interpolate", ["linear"], ["zoom"],
-          15, 0,
-          16, ["get", "min_height"]
-        ]
-      }
-    },
-    labelLayerId
-  );
-}
-
-// --------- Plot Pins ----------
+/* ---------------- Pins ---------------- */
 function addPlotPins() {
   for (const p of plots) {
     const el = document.createElement("div");
@@ -145,12 +101,13 @@ function addPlotPins() {
     el.addEventListener("click", () => {
       selectedPlot = p;
       navigateBtn.disabled = !lastUser;
-      setSelectedHighlight(p);
+      setSelectedHighlightSafe(p);
+      setSelectedRingMarker(p);
     });
   }
 }
 
-// --------- YOU ARE HERE (human marker) ----------
+/* ---------------- YOU ARE HERE ---------------- */
 function startLiveLocation() {
   if (!navigator.geolocation) {
     gpsStatus.textContent = "GPS: Not supported";
@@ -227,7 +184,7 @@ function buildYouAreHereElement() {
   return wrap;
 }
 
-// --------- Nearest plot ----------
+/* ---------------- Nearest plot ---------------- */
 function findNearestPlot(userLngLat) {
   if (!plots.length) return null;
 
@@ -240,13 +197,11 @@ function findNearestPlot(userLngLat) {
     const d = turf.distance(user, pt, { units: "meters" });
     if (d < bestDist) { bestDist = d; best = p; }
   }
-
   if (!best) return null;
   return { ...best, distance_m: bestDist };
 }
 
-// --------- Search (plot_id OR name) ----------
-// removes spaces/dots/hyphens etc => allows "V.FGA 002" to match "V.FGA.-002"
+/* ---------------- Search ---------------- */
 function normalizeKey(s) {
   return String(s || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
 }
@@ -256,10 +211,8 @@ function searchAny() {
   const q = normalizeKey(raw);
   if (!q) return;
 
-  // ✅ only search plot_id and name (no aliases/tags)
   let match = plots.find(p => normalizeKey(p.plot_id) === q || normalizeKey(p.name) === q);
 
-  // partial match
   if (!match) {
     match = plots.find(p => {
       const pid = normalizeKey(p.plot_id);
@@ -274,24 +227,29 @@ function searchAny() {
   }
 
   selectedPlot = match;
-  setSelectedHighlight(match); // ✅ ring highlight
   navigateBtn.disabled = !lastUser;
 
-  // keep your preferred zoom/rotation behavior:
+  // ✅ highlight
+  setSelectedHighlightSafe(match);
+  setSelectedRingMarker(match);
+
+  // ✅ do NOT zoom more — keep same level
   map.easeTo({
     center: [match.lng, match.lat],
-    zoom: SITE_ZOOM + 2,
-    pitch: 65,
-    duration: 950
+    zoom: SITE_ZOOM,      // <-- FIXED
+    pitch: 60,
+    duration: 900
   });
 }
 
-// --------- Clear ----------
+/* ---------------- Clear ---------------- */
 function clearSearch() {
   searchInput.value = "";
   selectedPlot = null;
   navigateBtn.disabled = true;
-  clearSelectedHighlight();
+
+  clearSelectedHighlightSafe();
+  removeSelectedRingMarker();
 
   map.easeTo({
     center: SITE_CENTER,
@@ -302,7 +260,7 @@ function clearSearch() {
   });
 }
 
-// --------- Directions ----------
+/* ---------------- Directions ---------------- */
 function openGoogleDirections(fromLngLat, toLngLat) {
   const from = `${fromLngLat[1]},${fromLngLat[0]}`;
   const to = `${toLngLat[1]},${toLngLat[0]}`;
@@ -310,7 +268,7 @@ function openGoogleDirections(fromLngLat, toLngLat) {
   window.open(url, "_blank");
 }
 
-// --------- Auto rotate ----------
+/* ---------------- Auto rotate ---------------- */
 function startAutoRotate() {
   stopAutoRotate();
   rotating = autoRotateChk.checked;
@@ -326,64 +284,152 @@ function stopAutoRotate() {
   rotateTimer = null;
 }
 
-// --------- ✅ Highlight Ring on searched/selected plot ----------
-function addSelectionHighlightLayers() {
-  // GeoJSON source for selected point
-  map.addSource("selected-point", {
-    type: "geojson",
-    data: { type: "FeatureCollection", features: [] }
-  });
-
-  // Outer glow (bigger)
-  map.addLayer({
-    id: "selected-glow",
-    type: "circle",
-    source: "selected-point",
-    paint: {
-      "circle-radius": 22,
-      "circle-color": "rgba(255, 59, 48, 0.20)"
+/* ---------------- Highlight ring (Map layer + HTML fallback) ---------------- */
+function addSelectionHighlightLayersSafe() {
+  try {
+    if (!map.getSource("selected-point")) {
+      map.addSource("selected-point", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] }
+      });
     }
-  });
 
-  // Ring outline
-  map.addLayer({
-    id: "selected-ring",
-    type: "circle",
-    source: "selected-point",
-    paint: {
-      "circle-radius": 14,
-      "circle-color": "rgba(0,0,0,0)",
-      "circle-stroke-width": 4,
-      "circle-stroke-color": "rgba(255, 59, 48, 0.95)"
+    if (!map.getLayer("selected-glow")) {
+      map.addLayer({
+        id: "selected-glow",
+        type: "circle",
+        source: "selected-point",
+        paint: {
+          "circle-radius": 22,
+          "circle-color": "rgba(255, 59, 48, 0.20)"
+        }
+      });
     }
-  });
 
-  // Inner dot
-  map.addLayer({
-    id: "selected-dot",
-    type: "circle",
-    source: "selected-point",
-    paint: {
-      "circle-radius": 6,
-      "circle-color": "rgba(255, 204, 0, 1)",
-      "circle-stroke-width": 2,
-      "circle-stroke-color": "white"
+    if (!map.getLayer("selected-ring")) {
+      map.addLayer({
+        id: "selected-ring",
+        type: "circle",
+        source: "selected-point",
+        paint: {
+          "circle-radius": 14,
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-stroke-width": 4,
+          "circle-stroke-color": "rgba(255, 59, 48, 0.95)"
+        }
+      });
     }
-  });
+
+    if (!map.getLayer("selected-dot")) {
+      map.addLayer({
+        id: "selected-dot",
+        type: "circle",
+        source: "selected-point",
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "rgba(255, 204, 0, 1)",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "white"
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("Highlight layers failed, using HTML fallback only:", e);
+  }
 }
 
-function setSelectedHighlight(p) {
-  const fc = {
-    type: "FeatureCollection",
-    features: [{
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [p.lng, p.lat] },
-      properties: { plot_id: p.plot_id, name: p.name || "" }
-    }]
-  };
-  map.getSource("selected-point").setData(fc);
+function setSelectedHighlightSafe(p) {
+  try {
+    const src = map.getSource("selected-point");
+    if (!src) return;
+    src.setData({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+        properties: { plot_id: p.plot_id, name: p.name || "" }
+      }]
+    });
+  } catch (e) {
+    console.warn("setSelectedHighlightSafe failed:", e);
+  }
 }
 
-function clearSelectedHighlight() {
-  map.getSource("selected-point").setData({ type: "FeatureCollection", features: [] });
+function clearSelectedHighlightSafe() {
+  try {
+    const src = map.getSource("selected-point");
+    if (!src) return;
+    src.setData({ type: "FeatureCollection", features: [] });
+  } catch (e) {
+    console.warn("clearSelectedHighlightSafe failed:", e);
+  }
+}
+
+// HTML fallback ring marker (always visible)
+function setSelectedRingMarker(p) {
+  removeSelectedRingMarker();
+  const el = document.createElement("div");
+  el.className = "sel-ring";
+  selectedRingMarker = new mapboxgl.Marker({ element: el, anchor: "center" })
+    .setLngLat([p.lng, p.lat])
+    .addTo(map);
+}
+function removeSelectedRingMarker() {
+  if (selectedRingMarker) {
+    selectedRingMarker.remove();
+    selectedRingMarker = null;
+  }
+}
+
+/* ---------------- 3D extras SAFE (cannot break app) ---------------- */
+function add3DSafe() {
+  try {
+    // Terrain + sky (optional)
+    if (!map.getSource("mapbox-dem")) {
+      map.addSource("mapbox-dem", {
+        type: "raster-dem",
+        url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+        tileSize: 512,
+        maxzoom: 14
+      });
+      map.setTerrain({ source: "mapbox-dem", exaggeration: 1.2 });
+    }
+
+    if (!map.getLayer("sky")) {
+      map.addLayer({
+        id: "sky",
+        type: "sky",
+        paint: {
+          "sky-type": "atmosphere",
+          "sky-atmosphere-sun": [0.0, 0.0],
+          "sky-atmosphere-sun-intensity": 12
+        }
+      });
+    }
+
+    // 3D buildings (only if available)
+    const layers = map.getStyle().layers || [];
+    const labelLayerId = layers.find(l => l.type === "symbol" && l.layout && l.layout["text-field"])?.id;
+
+    if (!map.getLayer("3d-buildings")) {
+      map.addLayer(
+        {
+          id: "3d-buildings",
+          source: "composite",
+          "source-layer": "building",
+          filter: ["==", "extrude", "true"],
+          type: "fill-extrusion",
+          minzoom: 15,
+          paint: {
+            "fill-extrusion-opacity": 0.55,
+            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["get", "height"]],
+            "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["get", "min_height"]]
+          }
+        },
+        labelLayerId
+      );
+    }
+  } catch (e) {
+    console.warn("3D extras skipped:", e);
+  }
 }
