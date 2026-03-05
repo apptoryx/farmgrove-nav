@@ -1,5 +1,6 @@
 mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9yeTd1NHoifQ.aUq1kh2qBAIUM6Hcxf5NGg";
 
+
 // Site center from your link
 const SITE_CENTER = [55.4352569, 25.020628]; // [lng, lat]
 const SITE_ZOOM = 17;
@@ -40,21 +41,20 @@ async function init() {
 
   map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
-  // Load plots
+  // Load plots.json (simple format: plot_id, name, lat, lng)
   const res = await fetch("./plots.json");
   plots = await res.json();
 
   map.on("load", () => {
     add3D(map);
     addPlotPins();
+    addSelectionHighlightLayers();   // ✅ highlight ring layer
     startLiveLocation();
     startAutoRotate();
-    bindStopRotateOnUserInteraction();
   });
 
   searchBtn.addEventListener("click", searchAny);
   searchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") searchAny(); });
-
   clearBtn.addEventListener("click", clearSearch);
 
   navigateBtn.addEventListener("click", () => {
@@ -109,7 +109,7 @@ function add3D(map) {
       type: "fill-extrusion",
       minzoom: 15,
       paint: {
-        "fill-extrusion-opacity": 0.85,
+        "fill-extrusion-opacity": 0.75,
         "fill-extrusion-height": [
           "interpolate", ["linear"], ["zoom"],
           15, 0,
@@ -139,31 +139,18 @@ function addPlotPins() {
 
     new mapboxgl.Marker(el)
       .setLngLat([p.lng, p.lat])
-      .setPopup(new mapboxgl.Popup({ offset: 22 }).setHTML(pinPopupHTML(p)))
+      .setPopup(new mapboxgl.Popup({ offset: 22 }).setText(p.name || p.plot_id))
       .addTo(map);
 
     el.addEventListener("click", () => {
       selectedPlot = p;
       navigateBtn.disabled = !lastUser;
-
-      // stop rotate on selection
-      disableAutoRotateAfterUserAction();
+      setSelectedHighlight(p);
     });
   }
 }
 
-function pinPopupHTML(p) {
-  const title = escapeHtml(p.name || p.plot_id);
-  const id = escapeHtml(p.plot_id || "");
-  const tags = Array.isArray(p.tags) ? p.tags.join(", ") : "";
-  return `
-    <div style="font-family:Arial; font-weight:800; font-size:13px;">${title}</div>
-    <div style="font-family:Arial; font-size:12px; color:#555; margin-top:4px;">${id}</div>
-    ${tags ? `<div style="font-family:Arial; font-size:11px; color:#777; margin-top:6px;">${escapeHtml(tags)}</div>` : ""}
-  `;
-}
-
-// --------- Live Location (YOU ARE HERE human marker) ----------
+// --------- YOU ARE HERE (human marker) ----------
 function startLiveLocation() {
   if (!navigator.geolocation) {
     gpsStatus.textContent = "GPS: Not supported";
@@ -180,22 +167,17 @@ function startLiveLocation() {
 
       gpsStatus.textContent = `GPS: OK (${Math.round(pos.coords.accuracy)}m)`;
 
-      // Create marker once
       if (!youAreHereMarker) {
         const el = buildYouAreHereElement();
         youAreHereMarker = new mapboxgl.Marker({ element: el, anchor: "center" })
           .setLngLat(lngLat)
           .addTo(map);
 
-        // first time focus
-        if (followMe) {
-          map.easeTo({ center: lngLat, zoom: SITE_ZOOM, duration: 800 });
-        }
+        if (followMe) map.easeTo({ center: lngLat, zoom: SITE_ZOOM, duration: 800 });
       } else {
         youAreHereMarker.setLngLat(lngLat);
       }
 
-      // Follow user (optional)
       if (followMe) {
         map.easeTo({
           center: lngLat,
@@ -204,7 +186,6 @@ function startLiveLocation() {
         });
       }
 
-      // Nearest plot
       const nearest = findNearestPlot(lngLat);
       if (nearest) {
         nearestPlotEl.textContent = nearest.plot_id || nearest.name || "—";
@@ -216,8 +197,7 @@ function startLiveLocation() {
 
       navigateBtn.disabled = !selectedPlot;
     },
-    (err) => {
-      console.error(err);
+    () => {
       gpsStatus.textContent = "GPS: Blocked";
       nearestPlotEl.textContent = "Allow location";
       distanceChip.textContent = "Distance: — m";
@@ -235,7 +215,7 @@ function buildYouAreHereElement() {
 
   const dot = document.createElement("div");
   dot.className = "dot";
-  dot.textContent = "🚶"; // human symbol
+  dot.textContent = "🚶";
 
   const label = document.createElement("div");
   label.className = "label";
@@ -244,7 +224,6 @@ function buildYouAreHereElement() {
   wrap.appendChild(pulse);
   wrap.appendChild(dot);
   wrap.appendChild(label);
-
   return wrap;
 }
 
@@ -259,33 +238,17 @@ function findNearestPlot(userLngLat) {
   for (const p of plots) {
     const pt = turf.point([p.lng, p.lat]);
     const d = turf.distance(user, pt, { units: "meters" });
-
-    if (d < bestDist) {
-      bestDist = d;
-      best = p;
-    }
+    if (d < bestDist) { bestDist = d; best = p; }
   }
 
   if (!best) return null;
   return { ...best, distance_m: bestDist };
 }
 
-// --------- Search (fix: V.FGA 002 must match V.FGA.-002) ----------
-// Remove ALL non-alphanumeric characters (spaces, dots, hyphen, etc.)
+// --------- Search (plot_id OR name) ----------
+// removes spaces/dots/hyphens etc => allows "V.FGA 002" to match "V.FGA.-002"
 function normalizeKey(s) {
-  return String(s || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]/g, "");
-}
-
-function getSearchHaystackKey(p) {
-  const parts = [];
-  if (p.plot_id) parts.push(p.plot_id);
-  if (p.name) parts.push(p.name);
-  if (Array.isArray(p.aliases)) parts.push(...p.aliases);
-  if (Array.isArray(p.tags)) parts.push(...p.tags);
-  return normalizeKey(parts.join(" "));
+  return String(s || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
 }
 
 function searchAny() {
@@ -293,48 +256,42 @@ function searchAny() {
   const q = normalizeKey(raw);
   if (!q) return;
 
-  // stop rotation + stop follow-me (so it doesn't pull back to your GPS)
-  disableAutoRotateAfterUserAction();
-  followMe = false;
-  followMeChk.checked = false;
+  // ✅ only search plot_id and name (no aliases/tags)
+  let match = plots.find(p => normalizeKey(p.plot_id) === q || normalizeKey(p.name) === q);
 
-  // 1) Exact match priority
-  let match = plots.find(p => {
-    const pid = normalizeKey(p.plot_id);
-    const nm = normalizeKey(p.name);
-    const aliases = Array.isArray(p.aliases) ? p.aliases.map(normalizeKey) : [];
-    return pid === q || nm === q || aliases.includes(q);
-  });
-
-  // 2) Partial match
+  // partial match
   if (!match) {
-    match = plots.find(p => getSearchHaystackKey(p).includes(q));
+    match = plots.find(p => {
+      const pid = normalizeKey(p.plot_id);
+      const nm = normalizeKey(p.name);
+      return (pid && pid.includes(q)) || (nm && nm.includes(q));
+    });
   }
 
   if (!match) {
-    alert("Plot/Area not found. Try Plot ID or keyword (Emergency / rest / assembly / first aid).");
+    alert("Plot/Area not found. Check Plot ID or Area Name.");
     return;
   }
 
   selectedPlot = match;
+  setSelectedHighlight(match); // ✅ ring highlight
+  navigateBtn.disabled = !lastUser;
 
-  // zoom to plot
+  // keep your preferred zoom/rotation behavior:
   map.easeTo({
     center: [match.lng, match.lat],
     zoom: SITE_ZOOM + 2,
     pitch: 65,
-    bearing: map.getBearing() + 10,
-    duration: 1000
+    duration: 950
   });
-
-  navigateBtn.disabled = !lastUser;
 }
 
-// --------- Clear button ----------
+// --------- Clear ----------
 function clearSearch() {
   searchInput.value = "";
   selectedPlot = null;
   navigateBtn.disabled = true;
+  clearSelectedHighlight();
 
   map.easeTo({
     center: SITE_CENTER,
@@ -364,36 +321,69 @@ function startAutoRotate() {
     map.easeTo({ bearing: b + 0.6, duration: 120, easing: (t) => t });
   }, 120);
 }
-
 function stopAutoRotate() {
   if (rotateTimer) clearInterval(rotateTimer);
   rotateTimer = null;
 }
 
-function disableAutoRotateAfterUserAction() {
-  // When user searches or selects a plot -> stop rotating automatically
-  rotating = false;
-  autoRotateChk.checked = false;
-  stopAutoRotate();
+// --------- ✅ Highlight Ring on searched/selected plot ----------
+function addSelectionHighlightLayers() {
+  // GeoJSON source for selected point
+  map.addSource("selected-point", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] }
+  });
+
+  // Outer glow (bigger)
+  map.addLayer({
+    id: "selected-glow",
+    type: "circle",
+    source: "selected-point",
+    paint: {
+      "circle-radius": 22,
+      "circle-color": "rgba(255, 59, 48, 0.20)"
+    }
+  });
+
+  // Ring outline
+  map.addLayer({
+    id: "selected-ring",
+    type: "circle",
+    source: "selected-point",
+    paint: {
+      "circle-radius": 14,
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-stroke-width": 4,
+      "circle-stroke-color": "rgba(255, 59, 48, 0.95)"
+    }
+  });
+
+  // Inner dot
+  map.addLayer({
+    id: "selected-dot",
+    type: "circle",
+    source: "selected-point",
+    paint: {
+      "circle-radius": 6,
+      "circle-color": "rgba(255, 204, 0, 1)",
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "white"
+    }
+  });
 }
 
-function bindStopRotateOnUserInteraction() {
-  const stop = () => disableAutoRotateAfterUserAction();
-
-  map.on("dragstart", stop);
-  map.on("zoomstart", stop);
-  map.on("rotatestart", stop);
-  map.on("pitchstart", stop);
-  map.on("touchstart", stop);
-  map.on("wheel", stop);
+function setSelectedHighlight(p) {
+  const fc = {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+      properties: { plot_id: p.plot_id, name: p.name || "" }
+    }]
+  };
+  map.getSource("selected-point").setData(fc);
 }
 
-// --------- Helper ----------
-function escapeHtml(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function clearSelectedHighlight() {
+  map.getSource("selected-point").setData({ type: "FeatureCollection", features: [] });
 }
