@@ -1,4 +1,26 @@
 [
-  { "plot_id": "V.FGR.-001", "lat": 25.01797885541829, "lng": 55.4335385665492 },
-  { "plot_id": "V.FGA.-002", "lat": 25.015938095060125, "lng": 55.44210682311572 }
+  {
+    "plot_id": "V.FGR.-001",
+    "name": "Plot 001",
+    "aliases": ["V.FGR 001", "FGR-001"],
+    "tags": ["villa", "plot"],
+    "lat": 25.01797885541829,
+    "lng": 55.4335385665492
+  },
+  {
+    "plot_id": "V.FGA.-002",
+    "name": "Plot 002",
+    "aliases": ["V.FGA 002", "FGA-002"],
+    "tags": ["villa", "plot"],
+    "lat": 25.015938095060125,
+    "lng": 55.44210682311572
+  },
+  {
+    "plot_id": "AREA-EMERGENCY",
+    "name": "Emergency Area",
+    "aliases": ["Emergency area", "First aid point", "Assembly point"],
+    "tags": ["emergency", "first aid", "assembly"],
+    "lat": 25.01947317382337,
+    "lng": 55.43678221627275
+  }
 ]

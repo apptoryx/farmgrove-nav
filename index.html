@@ -4,41 +4,168 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Farm Grove Site Navigation</title>
+
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+
   <style>
-    body{margin:0;font-family:Arial}
-    #map{position:absolute;top:0;bottom:0;width:100%}
-    .panel{
-      position:absolute;top:12px;left:12px;right:12px;
-      background:rgba(255,255,255,.95);padding:12px;border-radius:12px;
-      box-shadow:0 8px 24px rgba(0,0,0,.15);max-width:720px;margin:0 auto
+    :root{
+      --bg: rgba(255,255,255,.92);
+      --stroke: rgba(0,0,0,.08);
+      --shadow: 0 16px 45px rgba(0,0,0,.18);
     }
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .badge{padding:6px 10px;background:#111;color:#fff;border-radius:999px;font-size:12px}
-    input{flex:1;min-width:220px;padding:10px 12px;border:1px solid #ccc;border-radius:10px}
-    button{padding:10px 12px;border:0;border-radius:10px;background:#111;color:#fff;cursor:pointer}
-    button.secondary{background:#555}
-    .big{font-size:16px;font-weight:700}
-    .muted{color:#666}
-    .hint{font-size:12px;color:#444;margin-top:8px}
+    body{margin:0;font-family:Inter,Arial,sans-serif; overflow:hidden;}
+    #map{position:absolute;top:0;bottom:0;width:100%;}
+
+    .panel{
+      position:absolute; top:12px; left:12px; right:12px;
+      background: var(--bg);
+      border: 1px solid var(--stroke);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 12px;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      max-width: 860px;
+      margin: 0 auto;
+      animation: slideDown .35s ease-out;
+    }
+    @keyframes slideDown{
+      from{transform: translateY(-8px); opacity:.0;}
+      to{transform: translateY(0); opacity:1;}
+    }
+
+    .topRow{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      justify-content:space-between;
+    }
+
+    .brand{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+
+    .badge{
+      padding:7px 12px;
+      border-radius:999px;
+      color:#fff;
+      font-weight:700;
+      font-size:12px;
+      letter-spacing:.3px;
+      background: linear-gradient(135deg, #111, #3a3a3a);
+    }
+
+    .status{
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .muted{color:#666; font-weight:700}
+
+    .chip{
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.06);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .row{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-top: 10px;
+    }
+
+    input{
+      flex:1; min-width: 240px;
+      padding: 12px 12px;
+      border: 1px solid rgba(0,0,0,.15);
+      border-radius: 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus{ border-color: rgba(0,0,0,.35); }
+
+    button{
+      padding: 12px 14px;
+      border: 0;
+      border-radius: 12px;
+      color: #fff;
+      font-weight: 800;
+      background: linear-gradient(135deg, #111, #2b2b2b);
+      cursor:pointer;
+      transition: transform .08s ease, opacity .15s ease;
+    }
+    button:active{ transform: scale(.98); }
+    button.secondary{
+      background: linear-gradient(135deg, #555, #777);
+    }
+    button:disabled{opacity:.5; cursor:not-allowed;}
+
+    .hint{
+      font-size: 12px;
+      color:#444;
+      margin-top: 8px;
+      line-height: 1.35;
+    }
+
+    .footerRow{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-top:10px;
+    }
+
+    .toggle{
+      display:flex; align-items:center; gap:8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(0,0,0,.06);
+      font-size: 12px;
+      font-weight: 800;
+      user-select:none;
+    }
+    .toggle input{ width: 16px; height: 16px; margin:0; }
+
+    /* Mobile spacing */
+    @media (max-width: 520px){
+      .status{font-size:14px;}
+      input{min-width: 180px;}
+    }
   </style>
 </head>
+
 <body>
   <div id="map"></div>
 
   <div class="panel">
-    <div class="row">
-      <span class="badge">FARM GROVE</span>
-      <span class="big">Nearest Plot: <span id="nearestPlot" class="muted">Detecting…</span></span>
+    <div class="topRow">
+      <div class="brand">
+        <span class="badge">FARM GROVE</span>
+        <span class="status">
+          Nearest: <span id="nearestPlot" class="muted">Detecting…</span>
+        </span>
+        <span id="distanceChip" class="chip">— m</span>
+      </div>
+
+      <div class="chip" id="gpsStatus">GPS: …</div>
     </div>
 
-    <div class="row" style="margin-top:10px;">
-      <input id="searchInput" placeholder="Search Plot / Villa ID (e.g., V.FH3.OS.3-001)" />
+    <div class="row">
+      <input id="searchInput" placeholder="Search Plot ID or Area (e.g., V.FH3.OS.3-001 / Emergency Area / first aid)" />
       <button id="searchBtn">Search</button>
       <button id="navigateBtn" class="secondary" disabled>Navigate</button>
     </div>
 
-    <div class="hint">Allow location. With 2 plots only now. Add more plots later into plots.json.</div>
+    <div class="footerRow">
+      <label class="toggle">
+        <input type="checkbox" id="autoRotate" checked />
+        3D Auto-Rotate
+      </label>
+
+      <label class="toggle">
+        <input type="checkbox" id="followMe" checked />
+        Follow Me
+      </label>
+    </div>
+
+    <div class="hint">
+      Allow location permission. Search supports Plot ID, Name, Aliases, and Tags (Emergency area, Rest area, Assembly point, etc.).
+    </div>
   </div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
