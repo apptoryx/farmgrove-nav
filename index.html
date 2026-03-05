@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Farm Grove Site Navigation</title>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <style>
+    body{margin:0;font-family:Arial}
+    #map{position:absolute;top:0;bottom:0;width:100%}
+    .panel{
+      position:absolute;top:12px;left:12px;right:12px;
+      background:rgba(255,255,255,.95);padding:12px;border-radius:12px;
+      box-shadow:0 8px 24px rgba(0,0,0,.15);max-width:720px;margin:0 auto
+    }
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .badge{padding:6px 10px;background:#111;color:#fff;border-radius:999px;font-size:12px}
+    input{flex:1;min-width:220px;padding:10px 12px;border:1px solid #ccc;border-radius:10px}
+    button{padding:10px 12px;border:0;border-radius:10px;background:#111;color:#fff;cursor:pointer}
+    button.secondary{background:#555}
+    .big{font-size:16px;font-weight:700}
+    .muted{color:#666}
+    .hint{font-size:12px;color:#444;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="panel">
+    <div class="row">
+      <span class="badge">FARM GROVE</span>
+      <span class="big">Nearest Plot: <span id="nearestPlot" class="muted">Detecting…</span></span>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <input id="searchInput" placeholder="Search Plot / Villa ID (e.g., V.FH3.OS.3-001)" />
+      <button id="searchBtn">Search</button>
+      <button id="navigateBtn" class="secondary" disabled>Navigate</button>
+    </div>
+
+    <div class="hint">Allow location. With 2 plots only now. Add more plots later into plots.json.</div>
+  </div>
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
