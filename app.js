@@ -1,6 +1,5 @@
 mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9yeTd1NHoifQ.aUq1kh2qBAIUM6Hcxf5NGg";
 
-
 // Site center from your link
 const SITE_CENTER = [55.4352569, 25.020628]; // [lng, lat]
 const SITE_ZOOM = 17;
@@ -12,6 +11,8 @@ let lastUser = null;
 let followMe = true;
 let rotating = true;
 let rotateTimer = null;
+
+let youAreHereMarker = null;
 
 // UI
 const nearestPlotEl = document.getElementById("nearestPlot");
@@ -48,6 +49,7 @@ async function init() {
     addPlotPins();
     startLiveLocation();
     startAutoRotate();
+    bindStopRotateOnUserInteraction();
   });
 
   searchBtn.addEventListener("click", searchAny);
@@ -73,7 +75,6 @@ async function init() {
 
 // --------- 3D / Terrain / Sky / Buildings ----------
 function add3D(map) {
-  // Terrain (3D ground)
   map.addSource("mapbox-dem", {
     type: "raster-dem",
     url: "mapbox://mapbox.mapbox-terrain-dem-v1",
@@ -83,7 +84,6 @@ function add3D(map) {
 
   map.setTerrain({ source: "mapbox-dem", exaggeration: 1.35 });
 
-  // Sky layer (nice 3D look)
   map.addLayer({
     id: "sky",
     type: "sky",
@@ -145,6 +145,9 @@ function addPlotPins() {
     el.addEventListener("click", () => {
       selectedPlot = p;
       navigateBtn.disabled = !lastUser;
+
+      // stop rotate on selection
+      disableAutoRotateAfterUserAction();
     });
   }
 }
@@ -160,7 +163,7 @@ function pinPopupHTML(p) {
   `;
 }
 
-// --------- Live Location (Animated pulsing dot) ----------
+// --------- Live Location (YOU ARE HERE human marker) ----------
 function startLiveLocation() {
   if (!navigator.geolocation) {
     gpsStatus.textContent = "GPS: Not supported";
@@ -170,29 +173,6 @@ function startLiveLocation() {
 
   gpsStatus.textContent = "GPS: Waiting…";
 
-  // Add pulsing dot image for user
-  const pulsingDot = makePulsingDot(map);
-
-  if (!map.hasImage("pulsing-dot")) {
-    map.addImage("pulsing-dot", pulsingDot, { pixelRatio: 2 });
-  }
-
-  if (!map.getSource("user")) {
-    map.addSource("user", {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] }
-    });
-  }
-
-  if (!map.getLayer("user-dot")) {
-    map.addLayer({
-      id: "user-dot",
-      type: "symbol",
-      source: "user",
-      layout: { "icon-image": "pulsing-dot" }
-    });
-  }
-
   navigator.geolocation.watchPosition(
     (pos) => {
       const lngLat = [pos.coords.longitude, pos.coords.latitude];
@@ -200,15 +180,20 @@ function startLiveLocation() {
 
       gpsStatus.textContent = `GPS: OK (${Math.round(pos.coords.accuracy)}m)`;
 
-      // Update user dot
-      map.getSource("user").setData({
-        type: "FeatureCollection",
-        features: [{
-          type: "Feature",
-          geometry: { type: "Point", coordinates: lngLat },
-          properties: {}
-        }]
-      });
+      // Create marker once
+      if (!youAreHereMarker) {
+        const el = buildYouAreHereElement();
+        youAreHereMarker = new mapboxgl.Marker({ element: el, anchor: "center" })
+          .setLngLat(lngLat)
+          .addTo(map);
+
+        // first time focus
+        if (followMe) {
+          map.easeTo({ center: lngLat, zoom: SITE_ZOOM, duration: 800 });
+        }
+      } else {
+        youAreHereMarker.setLngLat(lngLat);
+      }
 
       // Follow user (optional)
       if (followMe) {
@@ -241,52 +226,26 @@ function startLiveLocation() {
   );
 }
 
-// Animated pulsing dot (Mapbox example style)
-function makePulsingDot(map) {
-  const size = 140;
+function buildYouAreHereElement() {
+  const wrap = document.createElement("div");
+  wrap.className = "you-marker";
 
-  return {
-    width: size,
-    height: size,
-    data: new Uint8Array(size * size * 4),
+  const pulse = document.createElement("div");
+  pulse.className = "pulse";
 
-    onAdd: function () {
-      const canvas = document.createElement("canvas");
-      canvas.width = this.width;
-      canvas.height = this.height;
-      this.context = canvas.getContext("2d");
-    },
+  const dot = document.createElement("div");
+  dot.className = "dot";
+  dot.textContent = "🚶"; // human symbol
 
-    render: function () {
-      const t = (performance.now() % 1000) / 1000;
+  const label = document.createElement("div");
+  label.className = "label";
+  label.textContent = "You are here";
 
-      const radius = (size / 2) * 0.18;
-      const outerRadius = (size / 2) * (0.18 + 0.25 * t);
-      const ctx = this.context;
+  wrap.appendChild(pulse);
+  wrap.appendChild(dot);
+  wrap.appendChild(label);
 
-      ctx.clearRect(0, 0, this.width, this.height);
-
-      // Outer circle
-      ctx.beginPath();
-      ctx.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 160, 255, ${0.20 * (1 - t)})`;
-      ctx.fill();
-
-      // Inner dot
-      ctx.beginPath();
-      ctx.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(0, 140, 255, 1)";
-      ctx.strokeStyle = "white";
-      ctx.lineWidth = 8;
-      ctx.fill();
-      ctx.stroke();
-
-      this.data = ctx.getImageData(0, 0, this.width, this.height).data;
-
-      map.triggerRepaint();
-      return true;
-    }
-  };
+  return wrap;
 }
 
 // --------- Nearest plot ----------
@@ -311,40 +270,45 @@ function findNearestPlot(userLngLat) {
   return { ...best, distance_m: bestDist };
 }
 
-// --------- Search (works with OLD plots.json and NEW fields) ----------
-function normalizeLoose(s) {
+// --------- Search (fix: V.FGA 002 must match V.FGA.-002) ----------
+// Remove ALL non-alphanumeric characters (spaces, dots, hyphen, etc.)
+function normalizeKey(s) {
   return String(s || "")
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, " ")
-    .replace(/[\.\-_/]/g, ""); // remove . - _ /
+    .replace(/[^a-z0-9]/g, "");
 }
 
-function getSearchHaystack(p) {
+function getSearchHaystackKey(p) {
   const parts = [];
   if (p.plot_id) parts.push(p.plot_id);
   if (p.name) parts.push(p.name);
   if (Array.isArray(p.aliases)) parts.push(...p.aliases);
   if (Array.isArray(p.tags)) parts.push(...p.tags);
-  return normalizeLoose(parts.join(" | "));
+  return normalizeKey(parts.join(" "));
 }
 
 function searchAny() {
   const raw = String(searchInput.value || "").trim();
-  const q = normalizeLoose(raw);
+  const q = normalizeKey(raw);
   if (!q) return;
+
+  // stop rotation + stop follow-me (so it doesn't pull back to your GPS)
+  disableAutoRotateAfterUserAction();
+  followMe = false;
+  followMeChk.checked = false;
 
   // 1) Exact match priority
   let match = plots.find(p => {
-    const pid = normalizeLoose(p.plot_id);
-    const nm = normalizeLoose(p.name);
-    const aliases = Array.isArray(p.aliases) ? p.aliases.map(normalizeLoose) : [];
+    const pid = normalizeKey(p.plot_id);
+    const nm = normalizeKey(p.name);
+    const aliases = Array.isArray(p.aliases) ? p.aliases.map(normalizeKey) : [];
     return pid === q || nm === q || aliases.includes(q);
   });
 
   // 2) Partial match
   if (!match) {
-    match = plots.find(p => getSearchHaystack(p).includes(q));
+    match = plots.find(p => getSearchHaystackKey(p).includes(q));
   }
 
   if (!match) {
@@ -354,12 +318,13 @@ function searchAny() {
 
   selectedPlot = match;
 
+  // zoom to plot
   map.easeTo({
     center: [match.lng, match.lat],
-    zoom: SITE_ZOOM + 1,
+    zoom: SITE_ZOOM + 2,
     pitch: 65,
-    bearing: map.getBearing() + 15,
-    duration: 900
+    bearing: map.getBearing() + 10,
+    duration: 1000
   });
 
   navigateBtn.disabled = !lastUser;
@@ -403,6 +368,24 @@ function startAutoRotate() {
 function stopAutoRotate() {
   if (rotateTimer) clearInterval(rotateTimer);
   rotateTimer = null;
+}
+
+function disableAutoRotateAfterUserAction() {
+  // When user searches or selects a plot -> stop rotating automatically
+  rotating = false;
+  autoRotateChk.checked = false;
+  stopAutoRotate();
+}
+
+function bindStopRotateOnUserInteraction() {
+  const stop = () => disableAutoRotateAfterUserAction();
+
+  map.on("dragstart", stop);
+  map.on("zoomstart", stop);
+  map.on("rotatestart", stop);
+  map.on("pitchstart", stop);
+  map.on("touchstart", stop);
+  map.on("wheel", stop);
 }
 
 // --------- Helper ----------
