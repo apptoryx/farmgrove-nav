@@ -275,6 +275,10 @@ function clearSearch() {
   clearSelectedHighlightSafe();
   removeSelectedRingMarker();
 
+  // enable follow me again on clear
+  followMe = true;
+  followMeChk.checked = true;
+
   map.easeTo({
     center: lastUser || SITE_CENTER,
     zoom: SITE_ZOOM,
@@ -283,13 +287,12 @@ function clearSearch() {
     duration: 900
   });
 
-  // restart rotation if enabled
+  // restart auto-rotation after map reset
   if (autoRotateChk.checked) {
     rotating = true;
-
     setTimeout(() => {
       startAutoRotate();
-    }, 1200);
+    }, 1000);
   }
 }
 
@@ -323,7 +326,9 @@ function stopAutoRotate() {
 function stopRotationAndFollow() {
   stopAutoRotate();
   rotating = false;
-  autoRotateChk.checked = false;
+
+  // keep auto-rotate checkbox ON, only stop the motion temporarily
+  // autoRotateChk.checked = false;
 
   followMe = false;
   followMeChk.checked = false;
