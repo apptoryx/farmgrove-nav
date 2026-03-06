@@ -1,8 +1,10 @@
 mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9yeTd1NHoifQ.aUq1kh2qBAIUM6Hcxf5NGg";
 
-
 const SITE_CENTER = [55.4352569, 25.020628]; // [lng, lat]
 const SITE_ZOOM = 17;
+const SEARCH_ZOOM = 18; // better zoom for searched plot
+const INITIAL_BEARING = -20;
+const INITIAL_PITCH = 60;
 
 let map;
 let plots = [];
@@ -13,7 +15,8 @@ let rotating = true;
 let rotateTimer = null;
 
 let youAreHereMarker = null;
-let selectedRingMarker = null; // HTML fallback marker
+let selectedRingMarker = null;
+let hasInitialLocationFocus = false;
 
 // UI
 const nearestPlotEl = document.getElementById("nearestPlot");
@@ -34,8 +37,8 @@ async function init() {
     style: "mapbox://styles/mapbox/streets-v12",
     center: SITE_CENTER,
     zoom: SITE_ZOOM,
-    pitch: 60,
-    bearing: -20,
+    pitch: INITIAL_PITCH,
+    bearing: INITIAL_BEARING,
     antialias: true
   });
 
@@ -45,24 +48,16 @@ async function init() {
   plots = await res.json();
 
   map.on("load", () => {
-    // ✅ 1) Always add highlight layers FIRST (so search ring works)
     addSelectionHighlightLayersSafe();
-
-    // ✅ 2) Then pins
     addPlotPins();
-
-    // ✅ 3) Then GPS
-    startLiveLocation();
-
-    // ✅ 4) Then auto rotate
-    startAutoRotate();
-
-    // ✅ 5) 3D extras (safe)
     add3DSafe();
+    startLiveLocation();
   });
 
   searchBtn.addEventListener("click", searchAny);
-  searchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") searchAny(); });
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") searchAny();
+  });
 
   clearBtn.addEventListener("click", clearSearch);
 
@@ -73,8 +68,11 @@ async function init() {
 
   autoRotateChk.addEventListener("change", () => {
     rotating = autoRotateChk.checked;
-    if (rotating) startAutoRotate();
-    else stopAutoRotate();
+    if (rotating) {
+      startAutoRotate();
+    } else {
+      stopAutoRotate();
+    }
   });
 
   followMeChk.addEventListener("change", () => {
@@ -99,10 +97,19 @@ function addPlotPins() {
       .addTo(map);
 
     el.addEventListener("click", () => {
+      stopRotationAndFollow();
       selectedPlot = p;
       navigateBtn.disabled = !lastUser;
       setSelectedHighlightSafe(p);
       setSelectedRingMarker(p);
+
+      map.easeTo({
+        center: [p.lng, p.lat],
+        zoom: SEARCH_ZOOM,
+        pitch: 45,
+        bearing: 0,
+        duration: 1200
+      });
     });
   }
 }
@@ -129,13 +136,28 @@ function startLiveLocation() {
         youAreHereMarker = new mapboxgl.Marker({ element: el, anchor: "center" })
           .setLngLat(lngLat)
           .addTo(map);
-
-        if (followMe) map.easeTo({ center: lngLat, zoom: SITE_ZOOM, duration: 800 });
       } else {
         youAreHereMarker.setLngLat(lngLat);
       }
 
-      if (followMe) {
+      // first time: focus on current location, THEN start 3D rotation
+      if (!hasInitialLocationFocus) {
+        hasInitialLocationFocus = true;
+
+        map.easeTo({
+          center: lngLat,
+          zoom: SITE_ZOOM,
+          pitch: INITIAL_PITCH,
+          bearing: INITIAL_BEARING,
+          duration: 1400
+        });
+
+        if (rotating) {
+          setTimeout(() => {
+            if (autoRotateChk.checked) startAutoRotate();
+          }, 1500);
+        }
+      } else if (followMe) {
         map.easeTo({
           center: lngLat,
           zoom: Math.max(map.getZoom(), SITE_ZOOM),
@@ -181,6 +203,7 @@ function buildYouAreHereElement() {
   wrap.appendChild(pulse);
   wrap.appendChild(dot);
   wrap.appendChild(label);
+
   return wrap;
 }
 
@@ -195,15 +218,22 @@ function findNearestPlot(userLngLat) {
   for (const p of plots) {
     const pt = turf.point([p.lng, p.lat]);
     const d = turf.distance(user, pt, { units: "meters" });
-    if (d < bestDist) { bestDist = d; best = p; }
+    if (d < bestDist) {
+      bestDist = d;
+      best = p;
+    }
   }
+
   if (!best) return null;
   return { ...best, distance_m: bestDist };
 }
 
 /* ---------------- Search ---------------- */
 function normalizeKey(s) {
-  return String(s || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+  return String(s || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function searchAny() {
@@ -211,10 +241,15 @@ function searchAny() {
   const q = normalizeKey(raw);
   if (!q) return;
 
-  let match = plots.find(p => normalizeKey(p.plot_id) === q || normalizeKey(p.name) === q);
+  // IMPORTANT: stop rotation immediately on search click
+  stopRotationAndFollow();
+
+  let match = plots.find(
+    (p) => normalizeKey(p.plot_id) === q || normalizeKey(p.name) === q
+  );
 
   if (!match) {
-    match = plots.find(p => {
+    match = plots.find((p) => {
       const pid = normalizeKey(p.plot_id);
       const nm = normalizeKey(p.name);
       return (pid && pid.includes(q)) || (nm && nm.includes(q));
@@ -229,16 +264,16 @@ function searchAny() {
   selectedPlot = match;
   navigateBtn.disabled = !lastUser;
 
-  // ✅ highlight
   setSelectedHighlightSafe(match);
   setSelectedRingMarker(match);
 
-  // ✅ do NOT zoom more — keep same level
+  // On search: front/clean view, no strange black 3D boxes
   map.easeTo({
     center: [match.lng, match.lat],
-    zoom: SITE_ZOOM,      // <-- FIXED
-    pitch: 60,
-    duration: 900
+    zoom: SEARCH_ZOOM,
+    pitch: 35,
+    bearing: 0,
+    duration: 1200
   });
 }
 
@@ -251,12 +286,13 @@ function clearSearch() {
   clearSelectedHighlightSafe();
   removeSelectedRingMarker();
 
+  // keep user free to decide; do not restart rotation automatically
   map.easeTo({
-    center: SITE_CENTER,
+    center: lastUser || SITE_CENTER,
     zoom: SITE_ZOOM,
-    pitch: 60,
-    bearing: -20,
-    duration: 650
+    pitch: INITIAL_PITCH,
+    bearing: INITIAL_BEARING,
+    duration: 900
   });
 }
 
@@ -276,15 +312,29 @@ function startAutoRotate() {
 
   rotateTimer = setInterval(() => {
     const b = map.getBearing();
-    map.easeTo({ bearing: b + 0.6, duration: 120, easing: (t) => t });
+    map.easeTo({
+      bearing: b + 0.6,
+      duration: 120,
+      easing: (t) => t
+    });
   }, 120);
 }
+
 function stopAutoRotate() {
   if (rotateTimer) clearInterval(rotateTimer);
   rotateTimer = null;
 }
 
-/* ---------------- Highlight ring (Map layer + HTML fallback) ---------------- */
+function stopRotationAndFollow() {
+  stopAutoRotate();
+  rotating = false;
+  autoRotateChk.checked = false;
+
+  followMe = false;
+  followMeChk.checked = false;
+}
+
+/* ---------------- Highlight ring ---------------- */
 function addSelectionHighlightLayersSafe() {
   try {
     if (!map.getSource("selected-point")) {
@@ -365,7 +415,6 @@ function clearSelectedHighlightSafe() {
   }
 }
 
-// HTML fallback ring marker (always visible)
 function setSelectedRingMarker(p) {
   removeSelectedRingMarker();
   const el = document.createElement("div");
@@ -374,6 +423,7 @@ function setSelectedRingMarker(p) {
     .setLngLat([p.lng, p.lat])
     .addTo(map);
 }
+
 function removeSelectedRingMarker() {
   if (selectedRingMarker) {
     selectedRingMarker.remove();
@@ -381,10 +431,9 @@ function removeSelectedRingMarker() {
   }
 }
 
-/* ---------------- 3D extras SAFE (cannot break app) ---------------- */
+/* ---------------- 3D extras SAFE ---------------- */
 function add3DSafe() {
   try {
-    // Terrain + sky (optional)
     if (!map.getSource("mapbox-dem")) {
       map.addSource("mapbox-dem", {
         type: "raster-dem",
@@ -407,9 +456,10 @@ function add3DSafe() {
       });
     }
 
-    // 3D buildings (only if available)
     const layers = map.getStyle().layers || [];
-    const labelLayerId = layers.find(l => l.type === "symbol" && l.layout && l.layout["text-field"])?.id;
+    const labelLayerId = layers.find(
+      (l) => l.type === "symbol" && l.layout && l.layout["text-field"]
+    )?.id;
 
     if (!map.getLayer("3d-buildings")) {
       map.addLayer(
@@ -421,9 +471,25 @@ function add3DSafe() {
           type: "fill-extrusion",
           minzoom: 15,
           paint: {
-            "fill-extrusion-opacity": 0.55,
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["get", "height"]],
-            "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["get", "min_height"]]
+            "fill-extrusion-opacity": 0.35,
+            "fill-extrusion-height": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              15,
+              0,
+              16,
+              ["get", "height"]
+            ],
+            "fill-extrusion-base": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              15,
+              0,
+              16,
+              ["get", "min_height"]
+            ]
           }
         },
         labelLayerId
