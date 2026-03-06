@@ -1,8 +1,8 @@
 mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9yeTd1NHoifQ.aUq1kh2qBAIUM6Hcxf5NGg";
 
-const SITE_CENTER = [55.4352569, 25.020628]; // [lng, lat]
+const SITE_CENTER = [55.4352569, 25.020628];
 const SITE_ZOOM = 17;
-const SEARCH_ZOOM = 18; // better zoom for searched plot
+const SEARCH_ZOOM = 18;
 const INITIAL_BEARING = -20;
 const INITIAL_PITCH = 60;
 
@@ -20,6 +20,7 @@ let hasInitialLocationFocus = false;
 
 // UI
 const nearestPlotEl = document.getElementById("nearestPlot");
+const selectedPlotTextEl = document.getElementById("selectedPlotText");
 const distanceChip = document.getElementById("distanceChip");
 const gpsStatus = document.getElementById("gpsStatus");
 const searchInput = document.getElementById("searchInput");
@@ -68,11 +69,8 @@ async function init() {
 
   autoRotateChk.addEventListener("change", () => {
     rotating = autoRotateChk.checked;
-    if (rotating) {
-      startAutoRotate();
-    } else {
-      stopAutoRotate();
-    }
+    if (rotating) startAutoRotate();
+    else stopAutoRotate();
   });
 
   followMeChk.addEventListener("change", () => {
@@ -80,7 +78,6 @@ async function init() {
   });
 }
 
-/* ---------------- Pins ---------------- */
 function addPlotPins() {
   for (const p of plots) {
     const el = document.createElement("div");
@@ -99,6 +96,7 @@ function addPlotPins() {
     el.addEventListener("click", () => {
       stopRotationAndFollow();
       selectedPlot = p;
+      selectedPlotTextEl.textContent = p.name || p.plot_id;
       navigateBtn.disabled = !lastUser;
       setSelectedHighlightSafe(p);
       setSelectedRingMarker(p);
@@ -114,7 +112,6 @@ function addPlotPins() {
   }
 }
 
-/* ---------------- YOU ARE HERE ---------------- */
 function startLiveLocation() {
   if (!navigator.geolocation) {
     gpsStatus.textContent = "GPS: Not supported";
@@ -140,7 +137,6 @@ function startLiveLocation() {
         youAreHereMarker.setLngLat(lngLat);
       }
 
-      // first time: focus on current location, THEN start 3D rotation
       if (!hasInitialLocationFocus) {
         hasInitialLocationFocus = true;
 
@@ -167,7 +163,7 @@ function startLiveLocation() {
 
       const nearest = findNearestPlot(lngLat);
       if (nearest) {
-        nearestPlotEl.textContent = nearest.plot_id || nearest.name || "—";
+        nearestPlotEl.textContent = nearest.name || nearest.plot_id || "—";
         distanceChip.textContent = `Distance: ${Math.round(nearest.distance_m)} m`;
       } else {
         nearestPlotEl.textContent = "No plots loaded";
@@ -207,7 +203,6 @@ function buildYouAreHereElement() {
   return wrap;
 }
 
-/* ---------------- Nearest plot ---------------- */
 function findNearestPlot(userLngLat) {
   if (!plots.length) return null;
 
@@ -228,7 +223,6 @@ function findNearestPlot(userLngLat) {
   return { ...best, distance_m: bestDist };
 }
 
-/* ---------------- Search ---------------- */
 function normalizeKey(s) {
   return String(s || "")
     .toLowerCase()
@@ -241,7 +235,6 @@ function searchAny() {
   const q = normalizeKey(raw);
   if (!q) return;
 
-  // IMPORTANT: stop rotation immediately on search click
   stopRotationAndFollow();
 
   let match = plots.find(
@@ -262,12 +255,12 @@ function searchAny() {
   }
 
   selectedPlot = match;
+  selectedPlotTextEl.textContent = match.name || match.plot_id;
   navigateBtn.disabled = !lastUser;
 
   setSelectedHighlightSafe(match);
   setSelectedRingMarker(match);
 
-  // On search: front/clean view, no strange black 3D boxes
   map.easeTo({
     center: [match.lng, match.lat],
     zoom: SEARCH_ZOOM,
@@ -277,16 +270,15 @@ function searchAny() {
   });
 }
 
-/* ---------------- Clear ---------------- */
 function clearSearch() {
   searchInput.value = "";
   selectedPlot = null;
+  selectedPlotTextEl.textContent = "—";
   navigateBtn.disabled = true;
 
   clearSelectedHighlightSafe();
   removeSelectedRingMarker();
 
-  // keep user free to decide; do not restart rotation automatically
   map.easeTo({
     center: lastUser || SITE_CENTER,
     zoom: SITE_ZOOM,
@@ -296,7 +288,6 @@ function clearSearch() {
   });
 }
 
-/* ---------------- Directions ---------------- */
 function openGoogleDirections(fromLngLat, toLngLat) {
   const from = `${fromLngLat[1]},${fromLngLat[0]}`;
   const to = `${toLngLat[1]},${toLngLat[0]}`;
@@ -304,7 +295,6 @@ function openGoogleDirections(fromLngLat, toLngLat) {
   window.open(url, "_blank");
 }
 
-/* ---------------- Auto rotate ---------------- */
 function startAutoRotate() {
   stopAutoRotate();
   rotating = autoRotateChk.checked;
@@ -334,7 +324,6 @@ function stopRotationAndFollow() {
   followMeChk.checked = false;
 }
 
-/* ---------------- Highlight ring ---------------- */
 function addSelectionHighlightLayersSafe() {
   try {
     if (!map.getSource("selected-point")) {
@@ -431,7 +420,6 @@ function removeSelectedRingMarker() {
   }
 }
 
-/* ---------------- 3D extras SAFE ---------------- */
 function add3DSafe() {
   try {
     if (!map.getSource("mapbox-dem")) {
@@ -476,19 +464,15 @@ function add3DSafe() {
               "interpolate",
               ["linear"],
               ["zoom"],
-              15,
-              0,
-              16,
-              ["get", "height"]
+              15, 0,
+              16, ["get", "height"]
             ],
             "fill-extrusion-base": [
               "interpolate",
               ["linear"],
               ["zoom"],
-              15,
-              0,
-              16,
-              ["get", "min_height"]
+              15, 0,
+              16, ["get", "min_height"]
             ]
           }
         },

@@ -13,95 +13,208 @@
       --stroke: rgba(0,0,0,.08);
       --shadow: 0 16px 45px rgba(0,0,0,.18);
     }
-    body{margin:0;font-family:Inter,Arial,sans-serif; overflow:hidden;}
+    body{margin:0;font-family:Inter,Arial,sans-serif;overflow:hidden;}
     #map{position:absolute;top:0;bottom:0;width:100%;}
 
     .panel{
-      position:absolute; top:12px; left:12px; right:12px;
-      background: var(--bg);
-      border: 1px solid var(--stroke);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      padding: 12px;
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-      max-width: 860px;
-      margin: 0 auto;
-      animation: slideDown .35s ease-out;
+      position:absolute;top:12px;left:12px;right:12px;
+      background:var(--bg);
+      border:1px solid var(--stroke);
+      backdrop-filter:blur(10px);
+      -webkit-backdrop-filter:blur(10px);
+      padding:12px;
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      max-width:980px;
+      margin:0 auto;
+      animation:slideDown .35s ease-out;
     }
-    @keyframes slideDown{ from{transform:translateY(-8px);opacity:0;} to{transform:translateY(0);opacity:1;} }
+    @keyframes slideDown{
+      from{transform:translateY(-8px);opacity:0;}
+      to{transform:translateY(0);opacity:1;}
+    }
 
-    .topRow{display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between;}
-    .brand{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .topRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:space-between;
+    }
+
+    .brand{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
 
     .badge{
-      padding:7px 12px;border-radius:999px;color:#fff;font-weight:800;font-size:12px;letter-spacing:.3px;
-      background: linear-gradient(135deg, #111, #3a3a3a);
+      padding:7px 12px;
+      border-radius:999px;
+      color:#fff;
+      font-weight:800;
+      font-size:12px;
+      letter-spacing:.3px;
+      background:linear-gradient(135deg,#111,#3a3a3a);
     }
-    .status{font-size:15px;font-weight:900;}
+
+    .status{
+      font-size:15px;
+      font-weight:900;
+    }
+
     .muted{color:#666;font-weight:800;}
 
     .chip{
-      padding:7px 10px;border-radius:999px;background:rgba(0,0,0,.06);
-      font-size:12px;font-weight:800;
+      padding:7px 10px;
+      border-radius:999px;
+      background:rgba(0,0,0,.06);
+      font-size:12px;
+      font-weight:800;
     }
 
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;}
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:10px;
+    }
 
     input{
-      flex:1; min-width:240px; padding:12px 12px;
-      border:1px solid rgba(0,0,0,.15); border-radius:12px; font-size:14px; outline:none;
+      flex:1;
+      min-width:240px;
+      padding:12px 12px;
+      border:1px solid rgba(0,0,0,.15);
+      border-radius:12px;
+      font-size:14px;
+      outline:none;
     }
-    input:focus{ border-color: rgba(0,0,0,.35); }
+
+    input:focus{border-color:rgba(0,0,0,.35);}
 
     button{
-      padding:12px 14px;border:0;border-radius:12px;color:#fff;font-weight:900;
-      background: linear-gradient(135deg, #111, #2b2b2b);
-      cursor:pointer; transition: transform .08s ease, opacity .15s ease;
+      padding:12px 14px;
+      border:0;
+      border-radius:12px;
+      color:#fff;
+      font-weight:900;
+      background:linear-gradient(135deg,#111,#2b2b2b);
+      cursor:pointer;
+      transition:transform .08s ease, opacity .15s ease;
     }
-    button:active{ transform: scale(.98); }
-    button.secondary{ background: linear-gradient(135deg, #555, #777); }
-    button:disabled{opacity:.5; cursor:not-allowed;}
 
-    .hint{font-size:12px;color:#444;margin-top:8px;line-height:1.35;}
-    .footerRow{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;}
-    .toggle{
-      display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;
-      background:rgba(0,0,0,.06);font-size:12px;font-weight:900;user-select:none;
+    button:active{transform:scale(.98);}
+    button.secondary{background:linear-gradient(135deg,#555,#777);}
+    button:disabled{opacity:.5;cursor:not-allowed;}
+
+    .hint{
+      font-size:12px;
+      color:#444;
+      margin-top:8px;
+      line-height:1.35;
     }
+
+    .footerRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:10px;
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:12px;
+      background:rgba(0,0,0,.06);
+      font-size:12px;
+      font-weight:900;
+      user-select:none;
+    }
+
     .toggle input{width:16px;height:16px;margin:0;}
 
-    /* YOU ARE HERE marker */
-    .you-marker{position:relative;width:42px;height:42px;transform:translate(-50%,-50%);pointer-events:none;}
-    .you-marker .pulse{position:absolute;inset:0;border-radius:999px;background:rgba(0,140,255,.18);animation:pulse 1.3s ease-out infinite;}
-    .you-marker .dot{
-      position:absolute;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);
-      border-radius:999px;background:rgba(0,140,255,1);border:3px solid white;box-shadow:0 12px 22px rgba(0,0,0,.25);
-      display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;
-    }
-    .you-marker .label{
-      position:absolute;left:50%;top:44px;transform:translateX(-50%);
-      background:rgba(255,255,255,.92);color:#111;font-weight:900;font-size:11px;padding:5px 8px;border-radius:999px;
-      white-space:nowrap;border:1px solid rgba(0,0,0,.12);box-shadow:0 12px 22px rgba(0,0,0,.18);
-    }
-    @keyframes pulse{0%{transform:scale(.55);opacity:.55;}100%{transform:scale(1.35);opacity:0;}}
-
-    /* ✅ Fallback highlight ring marker (HTML) */
-    .sel-ring{
-      width:44px;height:44px;border-radius:999px;transform:translate(-50%,-50%);
-      border:4px solid rgba(255,59,48,.95);
-      box-shadow:0 0 0 10px rgba(255,59,48,.18);
-      background: rgba(0,0,0,0);
-      animation: ringPulse 1.1s ease-in-out infinite;
+    .you-marker{
+      position:relative;
+      width:42px;
+      height:42px;
+      transform:translate(-50%,-50%);
       pointer-events:none;
     }
-    @keyframes ringPulse{
-      0%{transform:translate(-50%,-50%) scale(0.92);}
-      50%{transform:translate(-50%,-50%) scale(1.05);}
-      100%{transform:translate(-50%,-50%) scale(0.92);}
+
+    .you-marker .pulse{
+      position:absolute;
+      inset:0;
+      border-radius:999px;
+      background:rgba(0,140,255,.18);
+      animation:pulse 1.3s ease-out infinite;
     }
 
-    @media (max-width:520px){ .status{font-size:14px;} input{min-width:180px;} }
+    .you-marker .dot{
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:26px;
+      height:26px;
+      transform:translate(-50%,-50%);
+      border-radius:999px;
+      background:rgba(0,140,255,1);
+      border:3px solid white;
+      box-shadow:0 12px 22px rgba(0,0,0,.25);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
+      line-height:1;
+    }
+
+    .you-marker .label{
+      position:absolute;
+      left:50%;
+      top:44px;
+      transform:translateX(-50%);
+      background:rgba(255,255,255,.92);
+      color:#111;
+      font-weight:900;
+      font-size:11px;
+      padding:5px 8px;
+      border-radius:999px;
+      white-space:nowrap;
+      border:1px solid rgba(0,0,0,.12);
+      box-shadow:0 12px 22px rgba(0,0,0,.18);
+    }
+
+    @keyframes pulse{
+      0%{transform:scale(.55);opacity:.55;}
+      100%{transform:scale(1.35);opacity:0;}
+    }
+
+    .sel-ring{
+      width:44px;
+      height:44px;
+      border-radius:999px;
+      transform:translate(-50%,-50%);
+      border:4px solid rgba(255,59,48,.95);
+      box-shadow:0 0 0 10px rgba(255,59,48,.18);
+      background:rgba(0,0,0,0);
+      animation:ringPulse 1.1s ease-in-out infinite;
+      pointer-events:none;
+    }
+
+    @keyframes ringPulse{
+      0%{transform:translate(-50%,-50%) scale(.92);}
+      50%{transform:translate(-50%,-50%) scale(1.05);}
+      100%{transform:translate(-50%,-50%) scale(.92);}
+    }
+
+    @media (max-width:520px){
+      .status{font-size:14px;}
+      input{min-width:180px;}
+    }
   </style>
 </head>
 
@@ -113,6 +226,7 @@
       <div class="brand">
         <span class="badge">FARM GROVE</span>
         <span class="status">Nearest: <span id="nearestPlot" class="muted">Detecting…</span></span>
+        <span class="status">Selected: <span id="selectedPlotText" class="muted">—</span></span>
         <span id="distanceChip" class="chip">Distance: — m</span>
       </div>
       <div class="chip" id="gpsStatus">GPS: …</div>
@@ -131,8 +245,7 @@
     </div>
 
     <div class="hint">
-      GPS = location status & accuracy. “m” = meters distance to nearest saved plot point.
-      Search ignores spaces/dots/hyphen (example: V.FGA 002 matches V.FGA.-002).
+      Nearest = nearest plot to your live GPS. Selected = searched/clicked plot.
     </div>
   </div>
 
