@@ -282,6 +282,15 @@ function clearSearch() {
     bearing: INITIAL_BEARING,
     duration: 900
   });
+
+  // restart rotation if enabled
+  if (autoRotateChk.checked) {
+    rotating = true;
+
+    setTimeout(() => {
+      startAutoRotate();
+    }, 1200);
+  }
 }
 
 function openGoogleDirections(fromLngLat, toLngLat) {
