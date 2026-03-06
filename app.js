@@ -20,7 +20,6 @@ let hasInitialLocationFocus = false;
 
 // UI
 const nearestPlotEl = document.getElementById("nearestPlot");
-const selectedPlotTextEl = document.getElementById("selectedPlotText");
 const distanceChip = document.getElementById("distanceChip");
 const gpsStatus = document.getElementById("gpsStatus");
 const searchInput = document.getElementById("searchInput");
@@ -96,7 +95,6 @@ function addPlotPins() {
     el.addEventListener("click", () => {
       stopRotationAndFollow();
       selectedPlot = p;
-      selectedPlotTextEl.textContent = p.name || p.plot_id;
       navigateBtn.disabled = !lastUser;
       setSelectedHighlightSafe(p);
       setSelectedRingMarker(p);
@@ -255,7 +253,6 @@ function searchAny() {
   }
 
   selectedPlot = match;
-  selectedPlotTextEl.textContent = match.name || match.plot_id;
   navigateBtn.disabled = !lastUser;
 
   setSelectedHighlightSafe(match);
@@ -273,7 +270,6 @@ function searchAny() {
 function clearSearch() {
   searchInput.value = "";
   selectedPlot = null;
-  selectedPlotTextEl.textContent = "—";
   navigateBtn.disabled = true;
 
   clearSelectedHighlightSafe();
