@@ -36,13 +36,15 @@ const navigateBtn = document.getElementById("navigateBtn");
 const autoRotateChk = document.getElementById("autoRotate");
 const followMeChk = document.getElementById("followMe");
 
-// default checked
 autoRotateChk.checked = true;
 followMeChk.checked = true;
 
 init();
 
 async function init() {
+  const res = await fetch(`./plots.json?v=${Date.now()}`);
+  plots = await res.json();
+
   map = new mapboxgl.Map({
     container: "map",
     style: "mapbox://styles/mapbox/streets-v12",
@@ -54,9 +56,6 @@ async function init() {
   });
 
   map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
-
-  const res = await fetch(`./plots.json?v=${Date.now()}`);
-  plots = await res.json();
 
   map.on("load", () => {
     addSelectionHighlightLayersSafe();
@@ -83,7 +82,6 @@ async function init() {
     followMe = followMeChk.checked;
   });
 
-  // custom searchable dropdown
   plotSearch.addEventListener("focus", () => {
     filterDropdown(plotSearch.value);
     showDropdown();
@@ -165,7 +163,7 @@ function renderDropdown() {
     return;
   }
 
-  filteredPlots.forEach((p, index) => {
+  filteredPlots.forEach((p) => {
     const item = document.createElement("div");
     item.className = "dropdown-item";
     item.textContent = p.plot_id || p.name || "";
