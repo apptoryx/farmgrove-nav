@@ -3,11 +3,11 @@ mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9ye
 const IS_MOBILE = window.matchMedia("(max-width: 768px)").matches;
 
 const SITE_CENTER = [55.4352569, 25.020628];
-const SITE_ZOOM = IS_MOBILE ? 17 : 17;
-const SEARCH_ZOOM = IS_MOBILE ? 18 : 18;
+const SITE_ZOOM = 17;
+const SEARCH_ZOOM = 18;
 const INITIAL_BEARING = IS_MOBILE ? -18 : -20;
 const INITIAL_PITCH = IS_MOBILE ? 55 : 60;
-const SEARCH_PITCH = IS_MOBILE ? 28 : 35;
+const SEARCH_PITCH = IS_MOBILE ? 20 : 35;
 const SEARCH_BEARING = 0;
 
 let map;
@@ -35,6 +35,7 @@ const clearBtn = document.getElementById("clearBtn");
 const navigateBtn = document.getElementById("navigateBtn");
 const autoRotateChk = document.getElementById("autoRotate");
 const followMeChk = document.getElementById("followMe");
+const controlPanel = document.getElementById("controlPanel");
 
 autoRotateChk.checked = true;
 followMeChk.checked = true;
@@ -174,11 +175,13 @@ function renderDropdown() {
 
 function showDropdown() {
   plotDropdown.classList.add("show");
+  if (IS_MOBILE) controlPanel.classList.add("dropdown-open");
 }
 
 function hideDropdown() {
   plotDropdown.classList.remove("show");
   activeDropdownIndex = -1;
+  controlPanel.classList.remove("dropdown-open");
 }
 
 function updateDropdownActive(items) {
@@ -251,7 +254,7 @@ function startLiveLocation() {
 
       if (!youAreHereMarker) {
         const el = buildYouAreHereElement();
-        youAreHereMarker = new mapboxgl.Marker({ element: el, anchor: "center" })
+        youAreHereMarker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
           .setLngLat(lngLat)
           .addTo(map);
       } else {
@@ -261,22 +264,23 @@ function startLiveLocation() {
       if (!hasInitialLocationFocus) {
         hasInitialLocationFocus = true;
 
+        // stronger initial focus so "You are here" is clearly visible above the panel
         map.easeTo({
-          center: lngLat,
+          center: [lngLat[0], lngLat[1] + (IS_MOBILE ? 0.00035 : 0)],
           zoom: SITE_ZOOM,
           pitch: INITIAL_PITCH,
           bearing: INITIAL_BEARING,
-          duration: 1200
+          duration: 1400
         });
 
         if (rotating) {
           setTimeout(() => {
             if (autoRotateChk.checked) startAutoRotate();
-          }, 1300);
+          }, 1500);
         }
       } else if (followMe) {
         map.easeTo({
-          center: lngLat,
+          center: [lngLat[0], lngLat[1] + (IS_MOBILE ? 0.00022 : 0)],
           zoom: Math.max(map.getZoom(), SITE_ZOOM),
           duration: 500
         });
@@ -379,6 +383,7 @@ function searchPlotObject(match) {
   setSelectedRingMarker(match);
 
   plotSearch.value = match.plot_id || "";
+  hideDropdown();
 
   map.easeTo({
     center: [match.lng, match.lat],
@@ -402,7 +407,7 @@ function clearSearch() {
   followMeChk.checked = true;
 
   map.easeTo({
-    center: lastUser || SITE_CENTER,
+    center: lastUser ? [lastUser[0], lastUser[1] + (IS_MOBILE ? 0.00022 : 0)] : SITE_CENTER,
     zoom: SITE_ZOOM,
     pitch: INITIAL_PITCH,
     bearing: INITIAL_BEARING,
@@ -420,8 +425,10 @@ function clearSearch() {
 function openGoogleDirections(fromLngLat, toLngLat) {
   const from = `${fromLngLat[1]},${fromLngLat[0]}`;
   const to = `${toLngLat[1]},${toLngLat[0]}`;
+
+  // direct open in same window, phone decides which map/app to use
   const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&travelmode=walking`;
-  window.open(url, "_blank");
+  window.location.href = url;
 }
 
 function startAutoRotate() {

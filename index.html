@@ -46,6 +46,11 @@
       margin:0 auto;
       animation:slideDown .35s ease-out;
       z-index:20;
+      transition: bottom .25s ease, transform .25s ease;
+    }
+
+    .panel.dropdown-open{
+      transform: translateY(-70px);
     }
 
     @keyframes slideDown{
@@ -249,8 +254,8 @@
       position:absolute;
       left:50%;
       top:50%;
-      width:26px;
-      height:26px;
+      width:28px;
+      height:28px;
       transform:translate(-50%,-50%);
       border-radius:999px;
       background:rgba(0,140,255,1);
@@ -266,13 +271,13 @@
     .you-marker .label{
       position:absolute;
       left:50%;
-      top:44px;
+      top:48px;
       transform:translateX(-50%);
       background:rgba(255,255,255,.95);
       color:#111;
       font-weight:900;
-      font-size:11px;
-      padding:5px 8px;
+      font-size:12px;
+      padding:6px 10px;
       border-radius:999px;
       white-space:nowrap;
       border:1px solid rgba(0,0,0,.12);
@@ -310,6 +315,10 @@
         right:8px;
         padding:10px;
         border-radius:18px;
+      }
+
+      .panel.dropdown-open{
+        transform: translateY(-110px);
       }
 
       .topRow{
@@ -364,7 +373,7 @@
       }
 
       .dropdown{
-        max-height:180px;
+        max-height:190px;
         border-radius:12px;
       }
 
@@ -385,7 +394,7 @@
 <body>
   <div id="map"></div>
 
-  <div class="panel">
+  <div id="controlPanel" class="panel">
     <div class="topRow">
       <div class="brand">
         <span class="badge">FARM GROVE</span>
