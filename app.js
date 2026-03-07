@@ -45,8 +45,11 @@ async function init() {
 
   map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
-  const res = await fetch("./plots.json");
+  // cache-busting JSON fetch
+  const res = await fetch(`./plots.json?v=${Date.now()}`);
   plots = await res.json();
+
+  console.log("Loaded plots:", plots);
 
   populatePlotDropdown();
 
@@ -88,16 +91,28 @@ async function init() {
 }
 
 function populatePlotDropdown() {
+  plotSelect.innerHTML = '<option value="">Select Plot / Area</option>';
+
   const sorted = [...plots].sort((a, b) => {
-    const aText = String(a.name || a.plot_id || "").toUpperCase();
-    const bText = String(b.name || b.plot_id || "").toUpperCase();
-    return aText.localeCompare(bText, undefined, { numeric: true, sensitivity: "base" });
+    const aText = String(a.plot_id || a.name || "").toUpperCase();
+    const bText = String(b.plot_id || b.name || "").toUpperCase();
+    return aText.localeCompare(bText, undefined, {
+      numeric: true,
+      sensitivity: "base"
+    });
   });
 
   for (const p of sorted) {
     const option = document.createElement("option");
     option.value = p.plot_id || p.name || "";
-    option.textContent = `${p.plot_id || ""}${p.name && p.name !== p.plot_id ? " - " + p.name : ""}`;
+
+    const pid = String(p.plot_id || "").trim();
+    const nm = String(p.name || "").trim();
+
+    option.textContent = (nm && nm !== pid)
+      ? `${pid} - ${nm}`
+      : pid || nm;
+
     plotSelect.appendChild(option);
   }
 }
