@@ -89,8 +89,8 @@ function populatePlotOptions() {
   plotOptions.innerHTML = "";
 
   const sorted = [...plots].sort((a, b) => {
-    const aText = String(a.plot_id || a.name || "").toUpperCase();
-    const bText = String(b.plot_id || b.name || "").toUpperCase();
+    const aText = String(a.plot_id || "").toUpperCase();
+    const bText = String(b.plot_id || "").toUpperCase();
     return aText.localeCompare(bText, undefined, {
       numeric: true,
       sensitivity: "base"
@@ -100,10 +100,9 @@ function populatePlotOptions() {
   for (const p of sorted) {
     const option = document.createElement("option");
     const pid = String(p.plot_id || "").trim();
-    const nm = String(p.name || "").trim();
 
-    option.value = pid || nm;
-    option.label = (nm && nm !== pid) ? `${pid} - ${nm}` : (pid || nm);
+    option.value = pid;   // only plot_id
+    // do NOT set option.label
 
     plotOptions.appendChild(option);
   }
@@ -292,7 +291,7 @@ function searchAny() {
   setSelectedHighlightSafe(match);
   setSelectedRingMarker(match);
 
-  plotSearch.value = match.plot_id || match.name || "";
+  plotSearch.value = match.plot_id || "";
 
   map.easeTo({
     center: [match.lng, match.lat],
