@@ -4,40 +4,42 @@ mapboxgl.accessToken = "PASTE_TOKEN_HERE";
 const IS_MOBILE = window.matchMedia("(max-width: 768px)").matches;
 
 const SITE_CENTER = [55.4352569, 25.020628];
-const SITE_ZOOM = IS_MOBILE ? 16.5 : 17;
-const SEARCH_ZOOM = IS_MOBILE ? 17.2 : 18;
-const INITIAL_BEARING = IS_MOBILE ? -10 : -20;
-const INITIAL_PITCH = IS_MOBILE ? 42 : 60;
-const SEARCH_PITCH = IS_MOBILE ? 12 : 35;
+const SITE_ZOOM = IS_MOBILE ? 17 : 17;
+const SEARCH_ZOOM = IS_MOBILE ? 18 : 18;
+const INITIAL_BEARING = IS_MOBILE ? -18 : -20;
+const INITIAL_PITCH = IS_MOBILE ? 55 : 60;
+const SEARCH_PITCH = IS_MOBILE ? 28 : 35;
 const SEARCH_BEARING = 0;
 
 let map;
 let plots = [];
+let filteredPlots = [];
 let selectedPlot = null;
 let lastUser = null;
 let followMe = true;
-let rotating = !IS_MOBILE; // off by default on mobile
+let rotating = true;
 let rotateTimer = null;
 
 let youAreHereMarker = null;
 let selectedRingMarker = null;
 let hasInitialLocationFocus = false;
+let activeDropdownIndex = -1;
 
 // UI
 const nearestPlotEl = document.getElementById("nearestPlot");
 const distanceChip = document.getElementById("distanceChip");
 const gpsStatus = document.getElementById("gpsStatus");
 const plotSearch = document.getElementById("plotSearch");
-const plotOptions = document.getElementById("plotOptions");
+const plotDropdown = document.getElementById("plotDropdown");
 const searchBtn = document.getElementById("searchBtn");
 const clearBtn = document.getElementById("clearBtn");
 const navigateBtn = document.getElementById("navigateBtn");
 const autoRotateChk = document.getElementById("autoRotate");
 const followMeChk = document.getElementById("followMe");
 
-// match checkbox to device default
-autoRotateChk.checked = rotating;
-followMeChk.checked = followMe;
+// default checked
+autoRotateChk.checked = true;
+followMeChk.checked = true;
 
 init();
 
@@ -57,8 +59,6 @@ async function init() {
   const res = await fetch(`./plots.json?v=${Date.now()}`);
   plots = await res.json();
 
-  populatePlotOptions();
-
   map.on("load", () => {
     addSelectionHighlightLayersSafe();
     addPlotPins();
@@ -67,15 +67,6 @@ async function init() {
   });
 
   searchBtn.addEventListener("click", searchAny);
-
-  plotSearch.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") searchAny();
-  });
-
-  plotSearch.addEventListener("change", () => {
-    if (plotSearch.value.trim()) searchAny();
-  });
-
   clearBtn.addEventListener("click", clearSearch);
 
   navigateBtn.addEventListener("click", () => {
@@ -92,12 +83,66 @@ async function init() {
   followMeChk.addEventListener("change", () => {
     followMe = followMeChk.checked;
   });
+
+  // custom searchable dropdown
+  plotSearch.addEventListener("focus", () => {
+    filterDropdown(plotSearch.value);
+    showDropdown();
+  });
+
+  plotSearch.addEventListener("input", () => {
+    filterDropdown(plotSearch.value);
+    showDropdown();
+  });
+
+  plotSearch.addEventListener("keydown", (e) => {
+    const items = plotDropdown.querySelectorAll(".dropdown-item");
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!items.length) return;
+      activeDropdownIndex = Math.min(activeDropdownIndex + 1, items.length - 1);
+      updateDropdownActive(items);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!items.length) return;
+      activeDropdownIndex = Math.max(activeDropdownIndex - 1, 0);
+      updateDropdownActive(items);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (items.length && activeDropdownIndex >= 0 && items[activeDropdownIndex]) {
+        chooseDropdownPlot(filteredPlots[activeDropdownIndex]);
+      } else {
+        searchAny();
+      }
+    } else if (e.key === "Escape") {
+      hideDropdown();
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".searchWrap")) {
+      hideDropdown();
+    }
+  });
 }
 
-function populatePlotOptions() {
-  plotOptions.innerHTML = "";
+function normalizeKey(s) {
+  return String(s || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]/g, "");
+}
 
-  const sorted = [...plots].sort((a, b) => {
+function filterDropdown(searchText = "") {
+  const q = normalizeKey(searchText);
+
+  filteredPlots = [...plots].filter((p) => {
+    if (!q) return true;
+    const pid = normalizeKey(p.plot_id);
+    const nm = normalizeKey(p.name);
+    return pid.includes(q) || nm.includes(q);
+  }).sort((a, b) => {
     const aText = String(a.plot_id || "").toUpperCase();
     const bText = String(b.plot_id || "").toUpperCase();
     return aText.localeCompare(bText, undefined, {
@@ -106,11 +151,54 @@ function populatePlotOptions() {
     });
   });
 
-  for (const p of sorted) {
-    const option = document.createElement("option");
-    option.value = String(p.plot_id || "").trim();
-    plotOptions.appendChild(option);
+  renderDropdown();
+}
+
+function renderDropdown() {
+  plotDropdown.innerHTML = "";
+  activeDropdownIndex = -1;
+
+  if (!filteredPlots.length) {
+    const empty = document.createElement("div");
+    empty.className = "dropdown-empty";
+    empty.textContent = "No matching plot / area";
+    plotDropdown.appendChild(empty);
+    return;
   }
+
+  filteredPlots.forEach((p, index) => {
+    const item = document.createElement("div");
+    item.className = "dropdown-item";
+    item.textContent = p.plot_id || p.name || "";
+    item.addEventListener("click", () => chooseDropdownPlot(p));
+    plotDropdown.appendChild(item);
+  });
+}
+
+function showDropdown() {
+  plotDropdown.classList.add("show");
+}
+
+function hideDropdown() {
+  plotDropdown.classList.remove("show");
+  activeDropdownIndex = -1;
+}
+
+function updateDropdownActive(items) {
+  items.forEach((item, idx) => {
+    item.classList.toggle("active", idx === activeDropdownIndex);
+  });
+
+  if (items[activeDropdownIndex]) {
+    items[activeDropdownIndex].scrollIntoView({ block: "nearest" });
+  }
+}
+
+function chooseDropdownPlot(plot) {
+  if (!plot) return;
+  plotSearch.value = plot.plot_id || plot.name || "";
+  hideDropdown();
+  searchPlotObject(plot);
 }
 
 function addPlotPins() {
@@ -140,7 +228,7 @@ function addPlotPins() {
       map.easeTo({
         center: [p.lng, p.lat],
         zoom: SEARCH_ZOOM,
-        pitch: IS_MOBILE ? 10 : 45,
+        pitch: SEARCH_PITCH,
         bearing: 0,
         duration: 1000
       });
@@ -259,19 +347,10 @@ function findNearestPlot(userLngLat) {
   return { ...best, distance_m: bestDist };
 }
 
-function normalizeKey(s) {
-  return String(s || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]/g, "");
-}
-
 function searchAny() {
   const raw = String(plotSearch.value || "").trim();
   const q = normalizeKey(raw);
   if (!q) return;
-
-  stopRotationAndFollow();
 
   let match = plots.find(
     (p) => normalizeKey(p.plot_id) === q || normalizeKey(p.name) === q
@@ -289,6 +368,12 @@ function searchAny() {
     alert("Plot/Area not found. Check Plot ID or Area Name.");
     return;
   }
+
+  searchPlotObject(match);
+}
+
+function searchPlotObject(match) {
+  stopRotationAndFollow();
 
   selectedPlot = match;
   navigateBtn.disabled = !lastUser;
@@ -314,6 +399,7 @@ function clearSearch() {
 
   clearSelectedHighlightSafe();
   removeSelectedRingMarker();
+  hideDropdown();
 
   followMe = true;
   followMeChk.checked = true;
@@ -473,7 +559,7 @@ function add3DSafe() {
         tileSize: 512,
         maxzoom: 14
       });
-      map.setTerrain({ source: "mapbox-dem", exaggeration: IS_MOBILE ? 1.05 : 1.2 });
+      map.setTerrain({ source: "mapbox-dem", exaggeration: IS_MOBILE ? 1.12 : 1.2 });
     }
 
     if (!map.getLayer("sky")) {
@@ -503,7 +589,7 @@ function add3DSafe() {
           type: "fill-extrusion",
           minzoom: 15,
           paint: {
-            "fill-extrusion-opacity": IS_MOBILE ? 0.22 : 0.35,
+            "fill-extrusion-opacity": IS_MOBILE ? 0.28 : 0.35,
             "fill-extrusion-height": [
               "interpolate",
               ["linear"],
