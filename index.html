@@ -9,7 +9,7 @@
 
   <style>
     :root{
-      --bg: rgba(255,255,255,.95);
+      --bg: rgba(255,255,255,.96);
       --stroke: rgba(0,0,0,.08);
       --shadow: 0 16px 45px rgba(0,0,0,.18);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -46,7 +46,7 @@
       margin:0 auto;
       animation:slideDown .35s ease-out;
       z-index:20;
-      transition: bottom .25s ease, transform .25s ease;
+      transition: bottom .25s ease, transform .25s ease, padding .25s ease;
     }
 
     .panel.dropdown-open{
@@ -236,15 +236,19 @@
 
     .you-marker{
       position:relative;
-      width:42px;
-      height:42px;
-      transform:translate(-50%,-50%);
+      width:54px;
+      height:72px;
+      transform:translate(-50%,-100%);
       pointer-events:none;
     }
 
     .you-marker .pulse{
       position:absolute;
-      inset:0;
+      left:50%;
+      top:18px;
+      width:52px;
+      height:52px;
+      transform:translateX(-50%);
       border-radius:999px;
       background:rgba(0,140,255,.18);
       animation:pulse 1.3s ease-out infinite;
@@ -253,10 +257,10 @@
     .you-marker .dot{
       position:absolute;
       left:50%;
-      top:50%;
-      width:28px;
-      height:28px;
-      transform:translate(-50%,-50%);
+      top:18px;
+      width:34px;
+      height:34px;
+      transform:translateX(-50%);
       border-radius:999px;
       background:rgba(0,140,255,1);
       border:3px solid white;
@@ -264,20 +268,20 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      font-size:16px;
+      font-size:18px;
       line-height:1;
     }
 
     .you-marker .label{
       position:absolute;
       left:50%;
-      top:48px;
+      top:56px;
       transform:translateX(-50%);
-      background:rgba(255,255,255,.95);
+      background:rgba(255,255,255,.97);
       color:#111;
       font-weight:900;
-      font-size:12px;
-      padding:6px 10px;
+      font-size:13px;
+      padding:7px 12px;
       border-radius:999px;
       white-space:nowrap;
       border:1px solid rgba(0,0,0,.12);
@@ -285,8 +289,8 @@
     }
 
     @keyframes pulse{
-      0%{transform:scale(.55);opacity:.55;}
-      100%{transform:scale(1.35);opacity:0;}
+      0%{transform:translateX(-50%) scale(.55);opacity:.55;}
+      100%{transform:translateX(-50%) scale(1.35);opacity:0;}
     }
 
     .sel-ring{
@@ -313,30 +317,30 @@
         top:auto;
         left:8px;
         right:8px;
-        padding:10px;
+        padding:9px 10px;
         border-radius:18px;
       }
 
       .panel.dropdown-open{
-        transform: translateY(-110px);
+        transform: translateY(-85px);
       }
 
       .topRow{
-        gap:8px;
+        gap:7px;
         align-items:flex-start;
       }
 
       .brand{
-        gap:8px;
+        gap:7px;
       }
 
       .status{
-        font-size:15px;
+        font-size:14px;
       }
 
       .chip{
-        font-size:12px;
-        padding:7px 9px;
+        font-size:11px;
+        padding:7px 8px;
       }
 
       .row{
@@ -350,43 +354,76 @@
         min-width:100%;
       }
 
+      input{
+        padding:12px 12px;
+        font-size:15px;
+        border-radius:13px;
+      }
+
       button{
         width:100%;
-        padding:14px 10px;
-        font-size:15px;
+        padding:12px 8px;
+        font-size:14px;
+        min-height:44px;
+        border-radius:13px;
       }
 
       .footerRow{
         justify-content:space-between;
         gap:8px;
+        margin-top:10px;
       }
 
       .toggle{
         flex:1;
         justify-content:center;
-        min-height:42px;
+        min-height:40px;
+        font-size:11px;
+        padding:7px 8px;
       }
 
       .hint{
-        font-size:11px;
-        margin-top:8px;
+        font-size:10px;
+        margin-top:7px;
       }
 
       .dropdown{
-        max-height:190px;
+        max-height:175px;
         border-radius:12px;
       }
 
       .dropdown-item{
-        padding:12px;
-        font-size:15px;
+        padding:11px 12px;
+        font-size:14px;
+      }
+
+      .you-marker{
+        width:62px;
+        height:82px;
+      }
+
+      .you-marker .pulse{
+        width:58px;
+        height:58px;
+      }
+
+      .you-marker .dot{
+        width:38px;
+        height:38px;
+        font-size:18px;
+      }
+
+      .you-marker .label{
+        top:62px;
+        font-size:13px;
+        padding:7px 12px;
       }
     }
 
     @media (max-width: 420px){
-      .status{font-size:14px;}
+      .status{font-size:13px;}
       .badge{font-size:11px;padding:7px 10px;}
-      .chip{font-size:11px;padding:7px 9px;}
+      .chip{font-size:11px;padding:7px 8px;}
     }
   </style>
 </head>

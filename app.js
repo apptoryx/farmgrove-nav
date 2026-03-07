@@ -65,8 +65,15 @@ async function init() {
     startLiveLocation();
   });
 
-  searchBtn.addEventListener("click", searchAny);
-  clearBtn.addEventListener("click", clearSearch);
+  searchBtn.addEventListener("click", () => {
+    searchAny();
+    resetMobilePanel();
+  });
+
+  clearBtn.addEventListener("click", () => {
+    clearSearch();
+    resetMobilePanel();
+  });
 
   navigateBtn.addEventListener("click", () => {
     if (!selectedPlot || !lastUser) return;
@@ -77,10 +84,13 @@ async function init() {
     rotating = autoRotateChk.checked;
     if (rotating) startAutoRotate();
     else stopAutoRotate();
+
+    resetMobilePanel();
   });
 
   followMeChk.addEventListener("change", () => {
     followMe = followMeChk.checked;
+    resetMobilePanel();
   });
 
   plotSearch.addEventListener("focus", () => {
@@ -112,6 +122,7 @@ async function init() {
         chooseDropdownPlot(filteredPlots[activeDropdownIndex]);
       } else {
         searchAny();
+        resetMobilePanel();
       }
     } else if (e.key === "Escape") {
       hideDropdown();
@@ -123,6 +134,12 @@ async function init() {
       hideDropdown();
     }
   });
+}
+
+function resetMobilePanel() {
+  if (IS_MOBILE) {
+    controlPanel.classList.remove("dropdown-open");
+  }
 }
 
 function normalizeKey(s) {
@@ -199,6 +216,7 @@ function chooseDropdownPlot(plot) {
   plotSearch.value = plot.plot_id || plot.name || "";
   hideDropdown();
   searchPlotObject(plot);
+  resetMobilePanel();
 }
 
 function addPlotPins() {
@@ -232,6 +250,8 @@ function addPlotPins() {
         bearing: 0,
         duration: 1000
       });
+
+      resetMobilePanel();
     });
   }
 }
@@ -264,9 +284,8 @@ function startLiveLocation() {
       if (!hasInitialLocationFocus) {
         hasInitialLocationFocus = true;
 
-        // stronger initial focus so "You are here" is clearly visible above the panel
         map.easeTo({
-          center: [lngLat[0], lngLat[1] + (IS_MOBILE ? 0.00035 : 0)],
+          center: [lngLat[0], lngLat[1] + (IS_MOBILE ? 0.00055 : 0)],
           zoom: SITE_ZOOM,
           pitch: INITIAL_PITCH,
           bearing: INITIAL_BEARING,
@@ -280,7 +299,7 @@ function startLiveLocation() {
         }
       } else if (followMe) {
         map.easeTo({
-          center: [lngLat[0], lngLat[1] + (IS_MOBILE ? 0.00022 : 0)],
+          center: [lngLat[0], lngLat[1] + (IS_MOBILE ? 0.00038 : 0)],
           zoom: Math.max(map.getZoom(), SITE_ZOOM),
           duration: 500
         });
@@ -392,6 +411,8 @@ function searchPlotObject(match) {
     bearing: SEARCH_BEARING,
     duration: 1000
   });
+
+  resetMobilePanel();
 }
 
 function clearSearch() {
@@ -407,7 +428,7 @@ function clearSearch() {
   followMeChk.checked = true;
 
   map.easeTo({
-    center: lastUser ? [lastUser[0], lastUser[1] + (IS_MOBILE ? 0.00022 : 0)] : SITE_CENTER,
+    center: lastUser ? [lastUser[0], lastUser[1] + (IS_MOBILE ? 0.00038 : 0)] : SITE_CENTER,
     zoom: SITE_ZOOM,
     pitch: INITIAL_PITCH,
     bearing: INITIAL_BEARING,
@@ -420,13 +441,13 @@ function clearSearch() {
       startAutoRotate();
     }, 900);
   }
+
+  resetMobilePanel();
 }
 
 function openGoogleDirections(fromLngLat, toLngLat) {
   const from = `${fromLngLat[1]},${fromLngLat[0]}`;
   const to = `${toLngLat[1]},${toLngLat[0]}`;
-
-  // direct open in same window, phone decides which map/app to use
   const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&travelmode=walking`;
   window.location.href = url;
 }
