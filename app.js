@@ -23,6 +23,7 @@ const nearestPlotEl = document.getElementById("nearestPlot");
 const distanceChip = document.getElementById("distanceChip");
 const gpsStatus = document.getElementById("gpsStatus");
 const searchInput = document.getElementById("searchInput");
+const plotSelect = document.getElementById("plotSelect");
 const searchBtn = document.getElementById("searchBtn");
 const clearBtn = document.getElementById("clearBtn");
 const navigateBtn = document.getElementById("navigateBtn");
@@ -47,6 +48,8 @@ async function init() {
   const res = await fetch("./plots.json");
   plots = await res.json();
 
+  populatePlotDropdown();
+
   map.on("load", () => {
     addSelectionHighlightLayersSafe();
     addPlotPins();
@@ -57,6 +60,13 @@ async function init() {
   searchBtn.addEventListener("click", searchAny);
   searchInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") searchAny();
+  });
+
+  plotSelect.addEventListener("change", () => {
+    const val = plotSelect.value;
+    if (!val) return;
+    searchInput.value = val;
+    searchAny();
   });
 
   clearBtn.addEventListener("click", clearSearch);
@@ -75,6 +85,21 @@ async function init() {
   followMeChk.addEventListener("change", () => {
     followMe = followMeChk.checked;
   });
+}
+
+function populatePlotDropdown() {
+  const sorted = [...plots].sort((a, b) => {
+    const aText = String(a.name || a.plot_id || "").toUpperCase();
+    const bText = String(b.name || b.plot_id || "").toUpperCase();
+    return aText.localeCompare(bText, undefined, { numeric: true, sensitivity: "base" });
+  });
+
+  for (const p of sorted) {
+    const option = document.createElement("option");
+    option.value = p.plot_id || p.name || "";
+    option.textContent = `${p.plot_id || ""}${p.name && p.name !== p.plot_id ? " - " + p.name : ""}`;
+    plotSelect.appendChild(option);
+  }
 }
 
 function addPlotPins() {
@@ -98,6 +123,9 @@ function addPlotPins() {
       navigateBtn.disabled = !lastUser;
       setSelectedHighlightSafe(p);
       setSelectedRingMarker(p);
+
+      searchInput.value = p.plot_id || p.name || "";
+      plotSelect.value = p.plot_id || p.name || "";
 
       map.easeTo({
         center: [p.lng, p.lat],
@@ -229,7 +257,7 @@ function normalizeKey(s) {
 }
 
 function searchAny() {
-  const raw = String(searchInput.value || "").trim();
+  const raw = String(searchInput.value || plotSelect.value || "").trim();
   const q = normalizeKey(raw);
   if (!q) return;
 
@@ -258,6 +286,9 @@ function searchAny() {
   setSelectedHighlightSafe(match);
   setSelectedRingMarker(match);
 
+  searchInput.value = match.plot_id || match.name || "";
+  plotSelect.value = match.plot_id || match.name || "";
+
   map.easeTo({
     center: [match.lng, match.lat],
     zoom: SEARCH_ZOOM,
@@ -269,13 +300,13 @@ function searchAny() {
 
 function clearSearch() {
   searchInput.value = "";
+  plotSelect.value = "";
   selectedPlot = null;
   navigateBtn.disabled = true;
 
   clearSelectedHighlightSafe();
   removeSelectedRingMarker();
 
-  // enable follow me again on clear
   followMe = true;
   followMeChk.checked = true;
 
@@ -287,7 +318,6 @@ function clearSearch() {
     duration: 900
   });
 
-  // restart auto-rotation after map reset
   if (autoRotateChk.checked) {
     rotating = true;
     setTimeout(() => {
@@ -326,10 +356,6 @@ function stopAutoRotate() {
 function stopRotationAndFollow() {
   stopAutoRotate();
   rotating = false;
-
-  // keep auto-rotate checkbox ON, only stop the motion temporarily
-  // autoRotateChk.checked = false;
-
   followMe = false;
   followMeChk.checked = false;
 }

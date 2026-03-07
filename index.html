@@ -25,7 +25,7 @@
       padding:12px;
       border-radius:16px;
       box-shadow:var(--shadow);
-      max-width:980px;
+      max-width:1100px;
       margin:0 auto;
       animation:slideDown .35s ease-out;
     }
@@ -82,17 +82,27 @@
       margin-top:10px;
     }
 
-    input{
-      flex:1;
-      min-width:240px;
+    input, select{
+      min-width:220px;
       padding:12px 12px;
       border:1px solid rgba(0,0,0,.15);
       border-radius:12px;
       font-size:14px;
       outline:none;
+      background:#fff;
     }
 
-    input:focus{border-color:rgba(0,0,0,.35);}
+    input{
+      flex:1;
+      min-width:260px;
+    }
+
+    select{
+      flex:0 0 280px;
+      cursor:pointer;
+    }
+
+    input:focus, select:focus{border-color:rgba(0,0,0,.35);}
 
     button{
       padding:12px 14px;
@@ -211,9 +221,11 @@
       100%{transform:translate(-50%,-50%) scale(.92);}
     }
 
-    @media (max-width:520px){
+    @media (max-width:700px){
       .status{font-size:14px;}
-      input{min-width:180px;}
+      input, select{min-width:180px;}
+      select{flex:1 1 100%;}
+      input{flex:1 1 100%;}
     }
   </style>
 </head>
@@ -232,7 +244,12 @@
     </div>
 
     <div class="row">
-      <input id="searchInput" placeholder="Search Plot ID or Area (e.g., V.FGA 002 / AREA-EMERGENCY)" />
+      <select id="plotSelect">
+        <option value="">Select Plot / Area</option>
+      </select>
+
+      <input id="searchInput" placeholder="Or type Plot ID / Area (e.g., V.FGA 002 / AREA-EMERGENCY)" />
+
       <button id="searchBtn">Search</button>
       <button id="clearBtn" class="secondary">Clear</button>
       <button id="navigateBtn" class="secondary" disabled>Navigate</button>
@@ -244,7 +261,7 @@
     </div>
 
     <div class="hint">
-  Nearest = nearest plot to your live GPS.
+      You can either choose from dropdown or type manually. Dropdown is useful when plot IDs contain both letters and numbers.
     </div>
    </div>
 
