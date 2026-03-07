@@ -22,8 +22,8 @@ let hasInitialLocationFocus = false;
 const nearestPlotEl = document.getElementById("nearestPlot");
 const distanceChip = document.getElementById("distanceChip");
 const gpsStatus = document.getElementById("gpsStatus");
-const searchInput = document.getElementById("searchInput");
-const plotSelect = document.getElementById("plotSelect");
+const plotSearch = document.getElementById("plotSearch");
+const plotOptions = document.getElementById("plotOptions");
 const searchBtn = document.getElementById("searchBtn");
 const clearBtn = document.getElementById("clearBtn");
 const navigateBtn = document.getElementById("navigateBtn");
@@ -45,13 +45,10 @@ async function init() {
 
   map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
-  // cache-busting JSON fetch
   const res = await fetch(`./plots.json?v=${Date.now()}`);
   plots = await res.json();
 
-  console.log("Loaded plots:", plots);
-
-  populatePlotDropdown();
+  populatePlotOptions();
 
   map.on("load", () => {
     addSelectionHighlightLayersSafe();
@@ -61,15 +58,13 @@ async function init() {
   });
 
   searchBtn.addEventListener("click", searchAny);
-  searchInput.addEventListener("keydown", (e) => {
+
+  plotSearch.addEventListener("keydown", (e) => {
     if (e.key === "Enter") searchAny();
   });
 
-  plotSelect.addEventListener("change", () => {
-    const val = plotSelect.value;
-    if (!val) return;
-    searchInput.value = val;
-    searchAny();
+  plotSearch.addEventListener("change", () => {
+    if (plotSearch.value.trim()) searchAny();
   });
 
   clearBtn.addEventListener("click", clearSearch);
@@ -90,8 +85,8 @@ async function init() {
   });
 }
 
-function populatePlotDropdown() {
-  plotSelect.innerHTML = '<option value="">Select Plot / Area</option>';
+function populatePlotOptions() {
+  plotOptions.innerHTML = "";
 
   const sorted = [...plots].sort((a, b) => {
     const aText = String(a.plot_id || a.name || "").toUpperCase();
@@ -104,16 +99,13 @@ function populatePlotDropdown() {
 
   for (const p of sorted) {
     const option = document.createElement("option");
-    option.value = p.plot_id || p.name || "";
-
     const pid = String(p.plot_id || "").trim();
     const nm = String(p.name || "").trim();
 
-    option.textContent = (nm && nm !== pid)
-      ? `${pid} - ${nm}`
-      : pid || nm;
+    option.value = pid || nm;
+    option.label = (nm && nm !== pid) ? `${pid} - ${nm}` : (pid || nm);
 
-    plotSelect.appendChild(option);
+    plotOptions.appendChild(option);
   }
 }
 
@@ -139,8 +131,7 @@ function addPlotPins() {
       setSelectedHighlightSafe(p);
       setSelectedRingMarker(p);
 
-      searchInput.value = p.plot_id || p.name || "";
-      plotSelect.value = p.plot_id || p.name || "";
+      plotSearch.value = p.plot_id || p.name || "";
 
       map.easeTo({
         center: [p.lng, p.lat],
@@ -272,7 +263,7 @@ function normalizeKey(s) {
 }
 
 function searchAny() {
-  const raw = String(searchInput.value || plotSelect.value || "").trim();
+  const raw = String(plotSearch.value || "").trim();
   const q = normalizeKey(raw);
   if (!q) return;
 
@@ -301,8 +292,7 @@ function searchAny() {
   setSelectedHighlightSafe(match);
   setSelectedRingMarker(match);
 
-  searchInput.value = match.plot_id || match.name || "";
-  plotSelect.value = match.plot_id || match.name || "";
+  plotSearch.value = match.plot_id || match.name || "";
 
   map.easeTo({
     center: [match.lng, match.lat],
@@ -314,8 +304,7 @@ function searchAny() {
 }
 
 function clearSearch() {
-  searchInput.value = "";
-  plotSelect.value = "";
+  plotSearch.value = "";
   selectedPlot = null;
   navigateBtn.disabled = true;
 

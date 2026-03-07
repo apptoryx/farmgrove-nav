@@ -82,7 +82,7 @@
       margin-top:10px;
     }
 
-    input, select{
+    input{
       min-width:220px;
       padding:12px 12px;
       border:1px solid rgba(0,0,0,.15);
@@ -92,17 +92,12 @@
       background:#fff;
     }
 
-    input{
+    #plotSearch{
       flex:1;
-      min-width:260px;
+      min-width:340px;
     }
 
-    select{
-      flex:0 0 280px;
-      cursor:pointer;
-    }
-
-    input:focus, select:focus{border-color:rgba(0,0,0,.35);}
+    input:focus{border-color:rgba(0,0,0,.35);}
 
     button{
       padding:12px 14px;
@@ -223,9 +218,8 @@
 
     @media (max-width:700px){
       .status{font-size:14px;}
-      input, select{min-width:180px;}
-      select{flex:1 1 100%;}
-      input{flex:1 1 100%;}
+      input{min-width:180px;}
+      #plotSearch{min-width:100%;}
     }
   </style>
 </head>
@@ -244,11 +238,13 @@
     </div>
 
     <div class="row">
-      <select id="plotSelect">
-        <option value="">Select Plot / Area</option>
-      </select>
-
-      <input id="searchInput" placeholder="Or type Plot ID / Area (e.g., V.FGA 002 / AREA-EMERGENCY)" />
+      <input
+        id="plotSearch"
+        list="plotOptions"
+        placeholder="Select or type Plot ID / Area (e.g., V.FGA 002 / AREA-EMERGENCY)"
+        autocomplete="off"
+      />
+      <datalist id="plotOptions"></datalist>
 
       <button id="searchBtn">Search</button>
       <button id="clearBtn" class="secondary">Clear</button>
@@ -261,9 +257,9 @@
     </div>
 
     <div class="hint">
-      You can either choose from dropdown or type manually. Dropdown is useful when plot IDs contain both letters and numbers.
+      One searchable dropdown: you can type, search, or pick directly from the list.
     </div>
-   </div>
+  </div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
