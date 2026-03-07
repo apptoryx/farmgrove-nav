@@ -1,17 +1,21 @@
 mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9yeTd1NHoifQ.aUq1kh2qBAIUM6Hcxf5NGg";
 
+const IS_MOBILE = window.matchMedia("(max-width: 768px)").matches;
+
 const SITE_CENTER = [55.4352569, 25.020628];
-const SITE_ZOOM = 17;
-const SEARCH_ZOOM = 18;
-const INITIAL_BEARING = -20;
-const INITIAL_PITCH = 60;
+const SITE_ZOOM = IS_MOBILE ? 16.5 : 17;
+const SEARCH_ZOOM = IS_MOBILE ? 17.2 : 18;
+const INITIAL_BEARING = IS_MOBILE ? -10 : -20;
+const INITIAL_PITCH = IS_MOBILE ? 42 : 60;
+const SEARCH_PITCH = IS_MOBILE ? 12 : 35;
+const SEARCH_BEARING = 0;
 
 let map;
 let plots = [];
 let selectedPlot = null;
 let lastUser = null;
 let followMe = true;
-let rotating = true;
+let rotating = !IS_MOBILE; // off by default on mobile
 let rotateTimer = null;
 
 let youAreHereMarker = null;
@@ -29,6 +33,10 @@ const clearBtn = document.getElementById("clearBtn");
 const navigateBtn = document.getElementById("navigateBtn");
 const autoRotateChk = document.getElementById("autoRotate");
 const followMeChk = document.getElementById("followMe");
+
+// match checkbox to device default
+autoRotateChk.checked = rotating;
+followMeChk.checked = followMe;
 
 init();
 
@@ -99,11 +107,7 @@ function populatePlotOptions() {
 
   for (const p of sorted) {
     const option = document.createElement("option");
-    const pid = String(p.plot_id || "").trim();
-
-    option.value = pid;   // only plot_id
-    // do NOT set option.label
-
+    option.value = String(p.plot_id || "").trim();
     plotOptions.appendChild(option);
   }
 }
@@ -111,8 +115,8 @@ function populatePlotOptions() {
 function addPlotPins() {
   for (const p of plots) {
     const el = document.createElement("div");
-    el.style.width = "14px";
-    el.style.height = "14px";
+    el.style.width = IS_MOBILE ? "12px" : "14px";
+    el.style.height = IS_MOBILE ? "12px" : "14px";
     el.style.borderRadius = "50%";
     el.style.background = "linear-gradient(135deg, #ff3b30, #ffcc00)";
     el.style.border = "2px solid white";
@@ -135,9 +139,9 @@ function addPlotPins() {
       map.easeTo({
         center: [p.lng, p.lat],
         zoom: SEARCH_ZOOM,
-        pitch: 45,
+        pitch: IS_MOBILE ? 10 : 45,
         bearing: 0,
-        duration: 1200
+        duration: 1000
       });
     });
   }
@@ -176,19 +180,19 @@ function startLiveLocation() {
           zoom: SITE_ZOOM,
           pitch: INITIAL_PITCH,
           bearing: INITIAL_BEARING,
-          duration: 1400
+          duration: 1200
         });
 
         if (rotating) {
           setTimeout(() => {
             if (autoRotateChk.checked) startAutoRotate();
-          }, 1500);
+          }, 1300);
         }
       } else if (followMe) {
         map.easeTo({
           center: lngLat,
           zoom: Math.max(map.getZoom(), SITE_ZOOM),
-          duration: 650
+          duration: 500
         });
       }
 
@@ -296,9 +300,9 @@ function searchAny() {
   map.easeTo({
     center: [match.lng, match.lat],
     zoom: SEARCH_ZOOM,
-    pitch: 35,
-    bearing: 0,
-    duration: 1200
+    pitch: SEARCH_PITCH,
+    bearing: SEARCH_BEARING,
+    duration: 1000
   });
 }
 
@@ -318,14 +322,14 @@ function clearSearch() {
     zoom: SITE_ZOOM,
     pitch: INITIAL_PITCH,
     bearing: INITIAL_BEARING,
-    duration: 900
+    duration: 800
   });
 
   if (autoRotateChk.checked) {
     rotating = true;
     setTimeout(() => {
       startAutoRotate();
-    }, 1000);
+    }, 900);
   }
 }
 
@@ -344,11 +348,11 @@ function startAutoRotate() {
   rotateTimer = setInterval(() => {
     const b = map.getBearing();
     map.easeTo({
-      bearing: b + 0.6,
+      bearing: b + 0.35,
       duration: 120,
       easing: (t) => t
     });
-  }, 120);
+  }, 140);
 }
 
 function stopAutoRotate() {
@@ -468,7 +472,7 @@ function add3DSafe() {
         tileSize: 512,
         maxzoom: 14
       });
-      map.setTerrain({ source: "mapbox-dem", exaggeration: 1.2 });
+      map.setTerrain({ source: "mapbox-dem", exaggeration: IS_MOBILE ? 1.05 : 1.2 });
     }
 
     if (!map.getLayer("sky")) {
@@ -498,7 +502,7 @@ function add3DSafe() {
           type: "fill-extrusion",
           minzoom: 15,
           paint: {
-            "fill-extrusion-opacity": 0.35,
+            "fill-extrusion-opacity": IS_MOBILE ? 0.22 : 0.35,
             "fill-extrusion-height": [
               "interpolate",
               ["linear"],
