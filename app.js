@@ -1,14 +1,12 @@
 mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9yeTd1NHoifQ.aUq1kh2qBAIUM6Hcxf5NGg";
+mapboxgl.accessToken = "YOUR_REAL_MAPBOX_TOKEN_HERE";
 
 const IS_MOBILE = window.matchMedia("(max-width: 768px)").matches;
 
 const SITE_CENTER = [55.4352569, 25.020628];
 const SITE_ZOOM = 17;
-const SEARCH_ZOOM = 18;
 const INITIAL_BEARING = IS_MOBILE ? -18 : -20;
 const INITIAL_PITCH = IS_MOBILE ? 55 : 60;
-const SEARCH_PITCH = IS_MOBILE ? 20 : 35;
-const SEARCH_BEARING = 0;
 
 let map;
 let plots = [];
@@ -242,16 +240,19 @@ function addPlotPins() {
       setSelectedRingMarker(p);
 
       plotSearch.value = p.plot_id || p.name || "";
+      resetMobilePanel();
+
+      const targetCenter = IS_MOBILE
+        ? [p.lng, p.lat - 0.00022]
+        : [p.lng, p.lat];
 
       map.easeTo({
-        center: [p.lng, p.lat],
-        zoom: SEARCH_ZOOM,
-        pitch: SEARCH_PITCH,
-        bearing: 0,
-        duration: 1000
+        center: targetCenter,
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+        duration: 900
       });
-
-      resetMobilePanel();
     });
   }
 }
@@ -403,16 +404,19 @@ function searchPlotObject(match) {
 
   plotSearch.value = match.plot_id || "";
   hideDropdown();
+  resetMobilePanel();
+
+  const targetCenter = IS_MOBILE
+    ? [match.lng, match.lat - 0.00022]
+    : [match.lng, match.lat];
 
   map.easeTo({
-    center: [match.lng, match.lat],
-    zoom: SEARCH_ZOOM,
-    pitch: SEARCH_PITCH,
-    bearing: SEARCH_BEARING,
-    duration: 1000
+    center: targetCenter,
+    zoom: map.getZoom(),
+    pitch: map.getPitch(),
+    bearing: map.getBearing(),
+    duration: 900
   });
-
-  resetMobilePanel();
 }
 
 function clearSearch() {
@@ -426,9 +430,14 @@ function clearSearch() {
 
   followMe = true;
   followMeChk.checked = true;
+  resetMobilePanel();
+
+  const resetCenter = lastUser
+    ? [lastUser[0], lastUser[1] + (IS_MOBILE ? 0.00038 : 0)]
+    : SITE_CENTER;
 
   map.easeTo({
-    center: lastUser ? [lastUser[0], lastUser[1] + (IS_MOBILE ? 0.00038 : 0)] : SITE_CENTER,
+    center: resetCenter,
     zoom: SITE_ZOOM,
     pitch: INITIAL_PITCH,
     bearing: INITIAL_BEARING,
@@ -441,8 +450,6 @@ function clearSearch() {
       startAutoRotate();
     }, 900);
   }
-
-  resetMobilePanel();
 }
 
 function openGoogleDirections(fromLngLat, toLngLat) {
