@@ -1,5 +1,4 @@
 mapboxgl.accessToken = "pk.eyJ1IjoiZXlhZDAyIiwiYSI6ImNtbWQ1ZGowMjBibDUycXNiMm9yeTd1NHoifQ.aUq1kh2qBAIUM6Hcxf5NGg";
-mapboxgl.accessToken = "YOUR_REAL_MAPBOX_TOKEN_HERE";
 
 const IS_MOBILE = window.matchMedia("(max-width: 768px)").matches;
 
